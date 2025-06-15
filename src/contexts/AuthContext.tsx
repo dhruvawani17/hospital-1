@@ -47,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: firebaseUser.email,
           photoURL: firebaseUser.photoURL,
           // contactNumber remains as per type definition (optional)
-          // dataAiHint is also optional
+          dataAiHint: firebaseUser.photoURL ? "user profile" : undefined, // Add hint if photoURL exists
         };
         setUser(appUser);
       } else {
@@ -65,7 +65,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleAuthError = (error: AuthError) => {
-    console.error("Firebase Auth Error:", error);
+    console.error("Firebase Auth Error Code:", error.code); 
+    console.error("Firebase Auth Error Message:", error.message);
+    
     let message = "An unknown error occurred.";
     switch (error.code) {
         case "auth/email-already-in-use":
@@ -92,6 +94,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         case "auth/invalid-credential":
              message = "Invalid credentials. Please check your email and password.";
             break;
+        case "auth/popup-closed-by-user":
+            message = "Sign-in popup was closed before completing. Please try again.";
+            break;
+        case "auth/popup-blocked":
+            message = "Sign-in popup was blocked by the browser. Please allow popups for this site.";
+            break;
+        case "auth/unauthorized-domain":
+            message = "This domain is not authorized for Firebase operations. Please check your Firebase project settings.";
+            break;
         default:
             message = error.message || "Failed to authenticate. Please try again.";
     }
@@ -104,19 +115,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = useCallback(async () => {
     setLoading(true);
+    console.log("Attempting Google Sign-In..."); // Log attempt
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
       // onAuthStateChanged will handle setting the user
       handleAuthSuccess();
-      return true;
     } catch (error) {
       handleAuthError(error as AuthError);
-      return false;
     } finally {
       setLoading(false);
     }
-  }, [router, toast, searchParams]);
+  }, [router, toast, searchParams]); // Added searchParams as it's used in handleAuthSuccess, which is called here
   
   const signUpWithEmail = useCallback(async (email: string, password: string, displayName: string): Promise<boolean> => {
     setLoading(true);
