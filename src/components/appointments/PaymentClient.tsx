@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -16,18 +16,19 @@ import { useToast } from "@/hooks/use-toast";
 import { useAppointment } from '@/contexts/AppointmentContext';
 import { SERVICES_DATA } from '@/lib/constants';
 import type { Service } from '@/types';
-import { AlertCircle, CheckCircle, CreditCard, CalendarDays, User, BriefcaseMedical, DollarSign, Loader2 } from 'lucide-react'; // DollarSign is used as an icon
+import { AlertCircle, CheckCircle, CreditCard, CalendarDays, User, BriefcaseMedical, DollarSign, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const paymentFormSchema = z.object({
   cardNumber: z.string()
+    .transform(val => val.replace(/\s/g, '')) // Remove spaces before validation
     .min(16, "Card number must be 16 digits.")
     .max(16, "Card number must be 16 digits.")
     .regex(/^\d{16}$/, "Invalid card number format. Must be 16 digits."),
   expiryDate: z.string()
     .min(5, "Expiry date must be MM/YY.")
     .max(5, "Expiry date must be MM/YY.")
-    .regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Invalid expiry date format. Use MM/YY."),
+    .regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Invalid expiry date format. Use MM/YY. Ensure month is 01-12."),
   cvc: z.string()
     .min(3, "CVC must be 3 digits.")
     .max(3, "CVC must be 3 digits.")
@@ -37,10 +38,45 @@ const paymentFormSchema = z.object({
 
 type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 
+// Helper function to format card number with spaces
+const formatCardNumberInput = (value: string): string => {
+  const cleaned = value.replace(/\D/g, ''); // Remove non-digits
+  const chunks = cleaned.match(/.{1,4}/g); // Split into chunks of 4
+  return chunks ? chunks.join(' ').slice(0, 19) : ''; // Join with spaces, limit to 16 digits + 3 spaces
+};
+
+// Helper function to format expiry date with a slash
+const formatExpiryDateInput = (value: string, previousValue: string = ""): string => {
+  const cleaned = value.replace(/\D/g, ''); // Remove non-digits
+
+  if (cleaned.length === 0) return "";
+  if (cleaned.length === 1) return cleaned;
+  
+  // If user is deleting the slash
+  if (value.length === 2 && previousValue.length === 3 && previousValue.endsWith('/')) {
+    return cleaned.slice(0,1);
+  }
+
+  if (cleaned.length >= 2) {
+    const month = cleaned.slice(0, 2);
+    const year = cleaned.slice(2, 4);
+    if (year) {
+      return `${month}/${year}`;
+    }
+    // Add slash automatically if typing month and not already present
+    if (value.length === 2 && !value.includes('/') && previousValue.length < 2) {
+        return `${month}/`;
+    }
+    return `${month}${value.includes('/') || cleaned.length === 2 ? '' : '/'}`; // Keep slash if already typed or add if 2 digits are complete
+  }
+  return cleaned;
+};
+
+
 export function PaymentClient() {
   const router = useRouter();
   const { toast } = useToast();
-  const { currentAppointment, confirmAppointment, clearCurrentAppointment } = useAppointment();
+  const { currentAppointment, confirmAppointment } = useAppointment();
   const [serviceDetails, setServiceDetails] = useState<Service | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -97,7 +133,8 @@ export function PaymentClient() {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     const transactionId = `RCPT-${Date.now()}`;
-    const receiptData = confirmAppointment({ transactionId });
+    // Pass the transformed (raw) card number and correctly formatted expiry
+    const receiptData = confirmAppointment({ transactionId }); 
     
     setIsLoading(false);
     if (receiptData) {
@@ -173,7 +210,19 @@ export function PaymentClient() {
                       <FormLabel>Card Number</FormLabel>
                       <div className="relative">
                         <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <FormControl><Input className="pl-10" placeholder="0000 0000 0000 0000" {...field} /></FormControl>
+                        <FormControl>
+                          <Input
+                            className="pl-10"
+                            placeholder="0000 0000 0000 0000"
+                            {...field}
+                            onChange={(e) => {
+                              const formatted = formatCardNumberInput(e.target.value);
+                              e.target.value = formatted; // Update input display
+                              field.onChange(formatted); // Update form state
+                            }}
+                            maxLength={19} // 16 digits + 3 spaces
+                          />
+                        </FormControl>
                       </div>
                       <FormMessage />
                     </FormItem>
@@ -186,7 +235,19 @@ export function PaymentClient() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Expiry Date</FormLabel>
-                        <FormControl><Input placeholder="MM/YY" {...field} /></FormControl>
+                        <FormControl>
+                          <Input
+                            placeholder="MM/YY"
+                            {...field}
+                            onChange={(e) => {
+                              const previousValue = field.value;
+                              const formatted = formatExpiryDateInput(e.target.value, previousValue);
+                              e.target.value = formatted;
+                              field.onChange(formatted);
+                            }}
+                            maxLength={5}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -197,7 +258,18 @@ export function PaymentClient() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>CVC</FormLabel>
-                        <FormControl><Input placeholder="123" {...field} /></FormControl>
+                        <FormControl>
+                          <Input
+                            placeholder="123"
+                            {...field}
+                            onChange={(e) => {
+                               const cleaned = e.target.value.replace(/\D/g, '');
+                               e.target.value = cleaned;
+                               field.onChange(cleaned);
+                            }}
+                            maxLength={3}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -227,3 +299,4 @@ export function PaymentClient() {
     </div>
   );
 }
+
