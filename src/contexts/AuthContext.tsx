@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { User } from "@/types";
@@ -7,7 +8,7 @@ import { useRouter } from "next/navigation";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: () => void; // Simplified mock login
+  login: (displayName?: string) => void; // Updated to accept optional displayName
   logout: () => void;
 }
 
@@ -33,23 +34,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  const login = useCallback(() => {
+  const login = useCallback((displayName?: string) => {
     setLoading(true);
-    // Simulate Google Sign-In
+    // Simulate Sign-In
     const mockUser: User = {
       uid: "mock-user-123",
-      displayName: "Demo User",
-      email: "demo.user@example.com",
+      displayName: displayName || "Demo User", // Use provided name or default
+      email: "demo.user@example.com", // This would come from form in a real app for manual login
       photoURL: "https://placehold.co/100x100.png"
     };
-    localStorage.setItem(MOCK_USER_KEY, JSON.stringify(mockUser));
+    try {
+      localStorage.setItem(MOCK_USER_KEY, JSON.stringify(mockUser));
+    } catch (error) {
+      console.error("Failed to save user to localStorage", error);
+    }
     setUser(mockUser);
     setLoading(false);
     router.push("/dashboard");
   }, [router]);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(MOCK_USER_KEY);
+    try {
+      localStorage.removeItem(MOCK_USER_KEY);
+    } catch (error) {
+      console.error("Failed to remove user from localStorage", error);
+    }
     setUser(null);
     router.push("/");
   }, [router]);

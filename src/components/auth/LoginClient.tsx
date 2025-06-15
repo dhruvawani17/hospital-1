@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { HealthFirstLogo } from "@/components/shared/icons";
 import { APP_NAME } from "@/lib/constants";
-import { Loader2, Mail, Lock } from "lucide-react";
+import { Loader2, Mail, Lock, User, Phone } from "lucide-react";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" {...props}>
@@ -25,6 +25,8 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 const loginFormSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  contactNumber: z.string().min(10, { message: "Contact number must be at least 10 digits." }).regex(/^\+?[0-9\s-()]+$/, "Invalid phone number format."),
   email: z.string().email({ message: "Please enter a valid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 });
@@ -37,16 +39,16 @@ export function LoginClient() {
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: {
+      name: "",
+      contactNumber: "",
       email: "",
       password: "",
     },
   });
 
-  // Handles manual form submission
   function onManualSubmit(data: LoginFormValues) {
-    // In a real app, you'd authenticate with these credentials
-    console.log("Manual login attempt with:", data.email);
-    login(); // Using the same mock login for now
+    console.log("Manual login attempt with:", data.email, "Name:", data.name);
+    login(data.name); // Pass the name to the login function
   }
 
   return (
@@ -62,6 +64,36 @@ export function LoginClient() {
         <CardContent className="space-y-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onManualSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center">
+                      <User className="mr-2 h-4 w-4 text-muted-foreground" /> Full Name
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contactNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center">
+                      <Phone className="mr-2 h-4 w-4 text-muted-foreground" /> Contact Number
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="tel" placeholder="(123) 456-7890" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="email"
@@ -92,7 +124,7 @@ export function LoginClient() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full" disabled={loading && form.formState.isSubmitting}>
                 {loading && form.formState.isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
                 Sign In
               </Button>
@@ -113,11 +145,11 @@ export function LoginClient() {
           <Button
             variant="outline"
             className="w-full text-base py-6"
-            onClick={login} // Google login still uses the same login function
+            onClick={() => login()} // Google login doesn't pass a name, so it will use default
             disabled={loading}
             aria-disabled={loading}
           >
-            {loading && !form.formState.isSubmitting ? ( // Show loader only if this button caused it
+            {loading && !form.formState.isSubmitting ? ( 
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             ) : (
               <GoogleIcon className="mr-3 h-5 w-5" />
@@ -134,5 +166,3 @@ export function LoginClient() {
     </div>
   );
 }
-
-    
