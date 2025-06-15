@@ -43,8 +43,7 @@ export function DashboardClient() {
     );
   }
 
-  const handleCancelAppointment = async (appointmentId: string) // appointmentId is Firestore doc ID
-   => {
+  const handleCancelAppointment = async (appointmentId: string) => { // appointmentId is Firestore doc ID
     try {
       await cancelAppointment(appointmentId);
       toast({

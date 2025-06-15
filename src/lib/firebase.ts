@@ -11,7 +11,7 @@ const firebaseConfig: FirebaseOptions = {
   apiKey: "AIzaSyCNzZWIa7leeX1xl_SU7m5vW_DuTPisT9Y",
   authDomain: "hospital-8e8d1.firebaseapp.com",
   projectId: "hospital-8e8d1",
-  storageBucket: "hospital-8e8d1.firebasestorage.app", // Corrected from firebasestorage.app
+  storageBucket: "hospital-8e8d1.firebasestorage.app",
   messagingSenderId: "580040490595",
   appId: "1:580040490595:web:2a1f4d96a22dc0eb904256",
   measurementId: "G-E3CDZTJW5J"
