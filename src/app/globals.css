@@ -2,79 +2,101 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --background: 207 20% 95%; /* Alice Blue variant - clean and airy backdrop */
+    --foreground: 222.2 84% 4.9%; /* Dark blue/black for text - high contrast */
+
+    --card: 0 0% 100%; /* White cards */
+    --card-foreground: 222.2 84% 4.9%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 207 74% 59%; /* #4CA1F1 - calming and trustworthy */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
+
+    --secondary: 207 20% 90%; /* Lighter shade of background for secondary elements */
+    --secondary-foreground: 222.2 84% 4.9%;
+
+    --muted: 207 20% 85%; /* Muted elements, slightly darker than secondary */
+    --muted-foreground: 222.2 40% 30%; /* Softer foreground for muted text */
+
+    --accent: 177 58% 39%; /* #3DBCB0 - for CTAs */
+    --accent-foreground: 0 0% 100%; /* White text on accent */
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+
+    --border: 207 20% 80%; /* Border color related to background */
+    --input: 207 20% 88%; /* Input background */
+    --ring: 207 74% 59%; /* Ring color to match primary */
+
+    --radius: 0.5rem;
+
+    /* Chart colors - can be adjusted if charts are used */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Sidebar specific colors - kept for shadcn/ui compatibility, adjust if sidebar is heavily used */
+    --sidebar-background: 207 20% 98%;
+    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-primary: 207 74% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 177 58% 39%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 207 20% 85%;
+    --sidebar-ring: 207 74% 59%;
   }
+
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    --background: 207 20% 10%; 
+    --foreground: 207 20% 95%;
+
+    --card: 207 20% 12%;
+    --card-foreground: 207 20% 95%;
+
+    --popover: 207 20% 12%;
+    --popover-foreground: 207 20% 95%;
+
+    --primary: 207 74% 65%; /* Slightly lighter blue for dark mode */
+    --primary-foreground: 222.2 84% 4.9%; /* Dark text on lighter primary */
+
+    --secondary: 207 20% 15%;
+    --secondary-foreground: 207 20% 95%;
+
+    --muted: 207 20% 20%;
+    --muted-foreground: 207 20% 65%;
+
+    --accent: 177 58% 45%; /* Slightly lighter teal for dark mode */
+    --accent-foreground: 222.2 84% 4.9%; /* Dark text on lighter accent */
+
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+
+    --border: 207 20% 25%;
+    --input: 207 20% 25%;
+    --ring: 207 74% 65%;
+    
+    /* Chart colors for dark mode */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Sidebar specific colors for dark mode */
+    --sidebar-background: 207 20% 8%;
+    --sidebar-foreground: 207 20% 90%;
+    --sidebar-primary: 207 74% 65%;
+    --sidebar-primary-foreground: 222.2 84% 4.9%;
+    --sidebar-accent: 177 58% 45%;
+    --sidebar-accent-foreground: 222.2 84% 4.9%;
+    --sidebar-border: 207 20% 22%;
+    --sidebar-ring: 207 74% 65%;
   }
 }
 
@@ -85,4 +107,21 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Add some subtle scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--background) / 0.5);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--secondary-foreground) / 0.5);
 }
