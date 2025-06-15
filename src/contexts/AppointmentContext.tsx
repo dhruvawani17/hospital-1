@@ -49,30 +49,30 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       );
       const querySnapshot = await getDocs(q);
       const appointments: Appointment[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((docSnap) => { // Renamed doc to docSnap to avoid conflict with outer doc
+        const data = docSnap.data();
         appointments.push({
-          id: doc.id,
+          id: docSnap.id,
           ...data,
           date: (data.date as Timestamp).toDate(),
-          createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(), // Fallback for older data
+          createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(), 
         } as Appointment);
       });
       setConfirmedAppointments(appointments);
     } catch (error) {
       console.error("Error fetching appointments from Firestore:", error);
-      setConfirmedAppointments([]); // Reset on error
+      setConfirmedAppointments([]); 
     } finally {
       setIsLoadingAppointments(false);
     }
-  }, []);
+  }, []); // Empty dependency array is fine as it's called by useEffect with user.uid
 
   useEffect(() => {
     if (user?.uid) {
       fetchAppointments(user.uid);
     } else {
-      setConfirmedAppointments([]); // Clear appointments if user logs out
-      setIsLoadingAppointments(false);
+      setConfirmedAppointments([]); 
+      setIsLoadingAppointments(false); // Ensure loading is false if no user
     }
   }, [user, fetchAppointments]);
 
@@ -86,21 +86,21 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const confirmAppointment = useCallback(async (paymentDetails: { transactionId: string }): Promise<ReceiptData | null> => {
     if (!user?.uid || !currentAppointment || !currentAppointment.serviceId || !currentAppointment.date || !currentAppointment.time || !currentAppointment.patientName || !currentAppointment.patientEmail) {
-      console.error("Incomplete appointment data or user not logged in");
+      console.error("Incomplete appointment data or user not logged in for confirmAppointment");
       return null;
     }
     
     const service = SERVICES_DATA.find(s => s.id === currentAppointment.serviceId);
     if (!service) {
-      console.error("Service not found for appointment");
+      console.error("Service not found for appointment confirmation");
       return null;
     }
 
-    const newAppointmentData = {
+    const newAppointmentDataToSave = {
       userId: user.uid,
       serviceId: currentAppointment.serviceId,
       serviceName: service.name,
-      date: Timestamp.fromDate(new Date(currentAppointment.date)), // Convert JS Date to Firestore Timestamp
+      date: Timestamp.fromDate(new Date(currentAppointment.date)),
       time: currentAppointment.time,
       patientName: currentAppointment.patientName,
       patientEmail: currentAppointment.patientEmail,
@@ -108,47 +108,46 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       status: 'confirmed' as Appointment['status'],
       price: service.price,
       transactionId: paymentDetails.transactionId,
-      createdAt: serverTimestamp(), // Firestore server timestamp
-      paymentDate: Timestamp.now() // For receipt
+      createdAt: serverTimestamp(),
+      paymentDate: Timestamp.now() 
     };
 
     try {
-      const docRef = await addDoc(collection(db, "appointments"), newAppointmentData);
+      // Add to Firestore
+      const docRef = await addDoc(collection(db, "appointments"), newAppointmentDataToSave);
       
-      const confirmedAppt: Appointment = {
-        id: docRef.id,
-        userId: user.uid,
-        serviceId: newAppointmentData.serviceId,
-        serviceName: newAppointmentData.serviceName,
-        date: currentAppointment.date, // Keep as JS Date in local state
-        time: newAppointmentData.time,
-        patientName: newAppointmentData.patientName,
-        patientEmail: newAppointmentData.patientEmail,
-        patientPhone: newAppointmentData.patientPhone,
-        status: newAppointmentData.status,
-        price: newAppointmentData.price,
-        transactionId: newAppointmentData.transactionId,
-        createdAt: new Date(), // Approximate, actual is serverTimestamp
-      };
+      // Re-fetch appointments to update the local state with server-generated timestamp
+      // This ensures data consistency.
+      await fetchAppointments(user.uid);
       
-      setConfirmedAppointments(prev => [confirmedAppt, ...prev].sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime()));
-      
+      // Construct ReceiptData for immediate use by the receipt page
+      // Use client-side dates for `date` and `createdAt` as they were just used.
+      // `paymentDate` for receipt can also be client-side `new Date()`.
       const receiptData: ReceiptData = {
-        ...confirmedAppt,
+        id: docRef.id, // Use the new docRef.id
+        userId: user.uid,
+        serviceId: newAppointmentDataToSave.serviceId,
+        serviceName: newAppointmentDataToSave.serviceName,
+        date: new Date(currentAppointment.date), // Use original JS Date object
+        time: newAppointmentDataToSave.time,
+        patientName: newAppointmentDataToSave.patientName,
+        patientEmail: newAppointmentDataToSave.patientEmail,
+        patientPhone: newAppointmentDataToSave.patientPhone,
+        status: newAppointmentDataToSave.status,
+        price: newAppointmentDataToSave.price,
+        transactionId: newAppointmentDataToSave.transactionId,
+        createdAt: new Date(), // This is an approximation for the receipt, actual is serverTimestamp
         paymentDate: new Date(), // Use current client date for receipt object
       };
       return receiptData;
     } catch (error) {
-      console.error("Error adding appointment to Firestore:", error);
+      console.error("Error adding appointment to Firestore in confirmAppointment:", error);
       return null;
     }
-  }, [user, currentAppointment]);
+  }, [user, currentAppointment, fetchAppointments]);
 
   const getAppointmentByTransactionId = useCallback(async (transactionId: string): Promise<Appointment | null> => {
-    if (!user?.uid) { // Check if user is available for security, though transactionId might be globally unique
-        console.warn("User not available for getAppointmentByTransactionId");
-        // Decide if you want to allow fetching without user or restrict it
-    }
+    // User check can be optional here if transactionId is globally unique and secure
     try {
       const q = query(collection(db, "appointments"), where("transactionId", "==", transactionId));
       const querySnapshot = await getDocs(q);
@@ -167,24 +166,26 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.error("Error fetching appointment by transactionId from Firestore:", error);
       return null;
     }
-  }, [user?.uid]);
+  }, []); // Removed user?.uid dependency as it might not be strictly necessary if transactionId is unique
 
 
   const clearCurrentAppointment = useCallback(() => {
     setCurrentAppointment(null);
   }, []);
 
-  const cancelAppointment = useCallback(async (appointmentId: string) => { // appointmentId is Firestore doc ID
+  const cancelAppointment = useCallback(async (appointmentId: string) => { 
     try {
       const appointmentRef = doc(db, "appointments", appointmentId);
       await updateDoc(appointmentRef, {
         status: 'cancelled'
       });
+      // Optimistically update local state or re-fetch
       setConfirmedAppointments(prevAppointments =>
         prevAppointments.map(appt =>
           appt.id === appointmentId ? { ...appt, status: 'cancelled' } : appt
         )
       );
+      // Optionally, you could call fetchAppointments(user.uid) here as well if strict consistency is needed
     } catch (error) {
       console.error("Error cancelling appointment in Firestore:", error);
       // Potentially re-throw or show error to user
@@ -215,3 +216,4 @@ export const useAppointment = (): AppointmentContextType => {
   }
   return context;
 };
+
