@@ -6,7 +6,7 @@ export interface Service {
   name: string;
   description: string;
   icon?: React.ElementType;
-  image: string; 
+  image: string;
   price: number;
   dataAiHint?: string;
 }
@@ -31,8 +31,9 @@ export interface User {
   uid: string;
   displayName: string | null;
   email: string | null;
+  contactNumber?: string | null; // Added contactNumber
   photoURL?: string | null;
-  dataAiHint?: string; // Added to match AuthContext
+  dataAiHint?: string;
 }
 
 export interface ReceiptData extends Appointment {

@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (displayName?: string) => void; // Updated to accept optional displayName
+  login: (details?: { displayName?: string; email?: string; contactNumber?: string }) => void;
   logout: () => void;
 }
 
@@ -34,15 +34,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  const login = useCallback((displayName?: string) => {
+  const login = useCallback((details?: { displayName?: string; email?: string; contactNumber?: string }) => {
     setLoading(true);
     // Simulate Sign-In
     const mockUser: User = {
       uid: "mock-user-123",
-      displayName: displayName || "Demo User", // Use provided name or default
-      email: "demo.user@example.com", // This would come from form in a real app for manual login
-      photoURL: "https://placehold.co/100x100.png", // Placeholder image
-      dataAiHint: "profile avatar" // Hint for AI image generation
+      displayName: details?.displayName || "Demo User",
+      email: details?.email || "demo.user@example.com",
+      contactNumber: details?.contactNumber || null,
+      photoURL: "https://placehold.co/100x100.png", 
+      dataAiHint: "profile avatar" 
     };
     try {
       localStorage.setItem(MOCK_USER_KEY, JSON.stringify(mockUser));
@@ -78,4 +79,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-

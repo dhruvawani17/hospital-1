@@ -47,8 +47,7 @@ export function LoginClient() {
   });
 
   function onManualSubmit(data: LoginFormValues) {
-    console.log("Manual login attempt with:", data.email, "Name:", data.name);
-    login(data.name); // Pass the name to the login function
+    login({ displayName: data.name, email: data.email, contactNumber: data.contactNumber });
   }
 
   return (
@@ -145,11 +144,11 @@ export function LoginClient() {
           <Button
             variant="outline"
             className="w-full text-base py-6"
-            onClick={() => login()} // Google login doesn't pass a name, so it will use default
+            onClick={() => login()} 
             disabled={loading}
             aria-disabled={loading}
           >
-            {loading && !form.formState.isSubmitting ? ( 
+            {loading && !form.formState.isSubmitting ? (
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             ) : (
               <GoogleIcon className="mr-3 h-5 w-5" />
