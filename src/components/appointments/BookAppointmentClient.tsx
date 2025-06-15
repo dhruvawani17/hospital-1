@@ -353,7 +353,3 @@ export function BookAppointmentClient() {
     </div>
   );
 }
-
-    
-
-    
