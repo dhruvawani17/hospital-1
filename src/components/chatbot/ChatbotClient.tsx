@@ -3,17 +3,18 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Send, Bot, User, Loader2 } from 'lucide-react';
-import { chatWithBot, type ChatInput, type ChatOutput } from '@/ai/flows/chatFlow'; // Import ChatOutput
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Send, Bot, User, Loader2, ExternalLink } from 'lucide-react';
+import { chatWithBot, type ChatInput, type ChatOutput } from '@/ai/flows/chatFlow';
 import { useToast } from '@/hooks/use-toast';
 import { APP_NAME, SERVICES_DATA } from '@/lib/constants';
-import type { Service } from '@/types';
 import { useAppointment } from '@/contexts/AppointmentContext';
+import type { AppointmentFormData } from '@/types';
 
 
 interface Message {
@@ -21,6 +22,7 @@ interface Message {
   sender: 'user' | 'bot';
   text: string;
   timestamp: Date;
+  receiptUrl?: string; // Optional: for "View Receipt" link
 }
 
 export function ChatbotClient() {
@@ -31,7 +33,7 @@ export function ChatbotClient() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const router = useRouter();
-  const { startNewAppointment } = useAppointment();
+  const { startNewAppointment, updateAppointmentData, confirmAppointment: confirmAppointmentInContext } = useAppointment();
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -75,15 +77,46 @@ export function ChatbotClient() {
 
     try {
       const input: ChatInput = { userInput: trimmedInput };
-      const response: ChatOutput = await chatWithBot(input); // Explicitly type response
+      const response: ChatOutput = await chatWithBot(input);
       
-      const botResponseText = response.botResponse;
       const newBotMessage: Message = {
         id: `bot-${Date.now()}`,
         sender: 'bot',
-        text: botResponseText,
+        text: response.botResponse,
         timestamp: new Date(),
       };
+      
+      if (response.bookingConfirmation) {
+        newBotMessage.receiptUrl = response.bookingConfirmation.receiptUrl;
+        
+        // Update client-side AppointmentContext
+        const {
+          serviceId,
+          date: dateStr, // This is YYYY-MM-DD string
+          time,
+          patientName,
+          patientEmail,
+          patientPhone,
+          transactionId
+        } = response.bookingConfirmation;
+
+        const serviceToBook = SERVICES_DATA.find(s => s.id === serviceId);
+        if (serviceToBook) {
+          const appointmentDataForContext: Partial<AppointmentFormData> & { serviceId: string } = {
+            serviceId: serviceToBook.id,
+            date: new Date(dateStr + 'T00:00:00'), // Ensure date string is parsed correctly, assuming local timezone. Add T00:00:00 to avoid timezone issues.
+            time,
+            patientName,
+            patientEmail,
+            patientPhone: patientPhone || '',
+          };
+          updateAppointmentData(appointmentDataForContext);
+          confirmAppointmentInContext({ transactionId }); // This saves to localStorage
+        } else {
+           toast({ variant: "destructive", title: "Booking Error", description: `Service ID ${serviceId} mismatch during confirmation.`});
+        }
+      }
+      
       setMessages(prev => [...prev, newBotMessage]);
 
       if (response.bookingInitiation) {
@@ -92,25 +125,16 @@ export function ChatbotClient() {
 
         if (serviceToBook) {
           startNewAppointment(serviceToBook);
-          // The bot message already acknowledges redirection, so just navigate after a delay
           setTimeout(() => {
             router.push('/book-appointment');
-          }, 2000); // 2 seconds delay for user to read the message
+          }, 1500);
         } else {
-          toast({
-            variant: "destructive",
-            title: "Booking Error",
-            description: `Could not find service with ID ${serviceId} to start booking.`,
-          });
+          toast({ variant: "destructive", title: "Booking Error", description: `Could not find service with ID ${serviceId} to start booking.` });
         }
       }
     } catch (error) {
       console.error("Error calling chat bot:", error);
-      toast({
-        variant: "destructive",
-        title: "Chatbot Error",
-        description: "Sorry, I couldn't connect to the chatbot. Please try again later.",
-      });
+      toast({ variant: "destructive", title: "Chatbot Error", description: "Sorry, I couldn't connect to the chatbot. Please try again later." });
        const errorBotMessage: Message = {
         id: `bot-error-${Date.now()}`,
         sender: 'bot',
@@ -154,19 +178,25 @@ export function ChatbotClient() {
                     </Avatar>
                   )}
                   <div
-                    className={`max-w-[70%] rounded-xl px-4 py-3 text-sm shadow ${
+                    className={`max-w-[75%] rounded-xl px-4 py-3 text-sm shadow ${
                       msg.sender === 'user'
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-muted-foreground'
                     }`}
                   >
-                    {/* Ensure text is split by actual newline characters if present, or display as is */}
                     {msg.text.split('\n').map((line, index, arr) => (
                         <React.Fragment key={index}>
                         {line}
                         {index < arr.length - 1 && <br />}
                         </React.Fragment>
                     ))}
+                    {msg.receiptUrl && msg.sender === 'bot' && (
+                      <p className="mt-2">
+                        <Link href={msg.receiptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-accent hover:underline font-semibold">
+                          View Full Receipt <ExternalLink className="ml-1 h-4 w-4" />
+                        </Link>
+                      </p>
+                    )}
                   </div>
                   {msg.sender === 'user' && (
                      <Avatar className="h-8 w-8">
@@ -210,3 +240,5 @@ export function ChatbotClient() {
     </div>
   );
 }
+
+    

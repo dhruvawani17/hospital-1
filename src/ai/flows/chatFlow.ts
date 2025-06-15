@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A simple AI chatbot flow for HealthFirst Connect.
@@ -9,9 +10,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { SERVICES_DATA, APP_NAME } from '@/lib/constants';
+import { SERVICES_DATA, APP_NAME, MOCK_TIME_SLOTS } from '@/lib/constants';
 import type { Service } from '@/types';
-import type { ToolRequestPart } from 'genkit'; // Import for typing if available, otherwise use 'any'
 
 const ChatInputSchema = z.object({
   userInput: z.string().describe('The message sent by the user to the chatbot.'),
@@ -26,32 +26,54 @@ const ChatOutputSchema = z.object({
       serviceName: z.string(),
     })
     .optional()
-    .describe('If present, the chatbot has identified an intent to book an appointment for this service.'),
+    .describe('If present, the chatbot has identified an intent to book an appointment for this service and will redirect to the booking form.'),
+  bookingConfirmation: z
+    .object({
+      transactionId: z.string(),
+      serviceId: z.string(),
+      serviceName: z.string(),
+      date: z.string(), // Storing as string, to be parsed by client
+      time: z.string(),
+      patientName: z.string(),
+      patientEmail: z.string(),
+      patientPhone: z.string().optional(),
+      price: z.number(),
+      receiptUrl: z.string(),
+      // confirmationMessage is now part of botResponse
+    })
+    .optional()
+    .describe('If present, the chatbot has successfully booked the appointment and this contains confirmation details for client-side processing.')
 });
 export type ChatOutput = z.infer<typeof ChatOutputSchema>;
 
 
+const AppointmentBookingToolInputSchema = z.object({
+  serviceId: z.string().describe("The ID of the medical service the user wants to book. This ID must exactly match one of the available service IDs from the list provided in the prompt."),
+  patientName: z.string().optional().describe("Patient's full name, if collected."),
+  patientEmail: z.string().email().optional().describe("Patient's email address, if collected."),
+  patientPhone: z.string().optional().describe("Patient's phone number, if collected."),
+  desiredDateStr: z.string().optional().describe("Desired date for the appointment (e.g., YYYY-MM-DD format), if collected."),
+  desiredTimeStr: z.string().optional().describe("Desired time for the appointment (e.g., HH:MM AM/PM format from the provided list), if collected.")
+});
+
 const initiateAppointmentBookingTool = ai.defineTool(
   {
     name: 'initiateAppointmentBooking',
-    description: `Use this tool ONLY when the user explicitly states they want to book an appointment for a specific medical service offered by ${APP_NAME}. You must identify the service ID. Do not use this tool for general inquiries about services.`,
-    inputSchema: z.object({
-      serviceId: z.string().describe('The ID of the medical service the user wants to book. This ID must exactly match one of the available service IDs from the list provided in the prompt.'),
-    }),
+    description: `Use this tool to either initiate an appointment booking by redirecting to a form, or to finalize an appointment if all details (service, name, email, phone, date, time) have been collected directly in the chat.`,
+    inputSchema: AppointmentBookingToolInputSchema,
     outputSchema: z.object({ // This output is for the tool's execution, not directly for the LLM in this setup
       success: z.boolean(),
-      serviceId: z.string(),
       message: z.string().optional(),
+      detailsProvided: AppointmentBookingToolInputSchema.optional(),
     }),
   },
   async (input) => {
-    // This tool primarily signals intent. The client acts on the signal.
-    // We can validate if the serviceId exists, though the LLM should get it from the prompt.
+    // This tool primarily signals intent and passes data. The flow handles the logic.
     const serviceExists = SERVICES_DATA.some(s => s.id === input.serviceId);
-    if (serviceExists) {
-      return { success: true, serviceId: input.serviceId, message: `Booking process can be initiated for service ID: ${input.serviceId}.` };
+    if (!serviceExists) {
+      return { success: false, message: `Service ID ${input.serviceId} is not a valid service.` };
     }
-    return { success: false, serviceId: input.serviceId, message: `Service ID ${input.serviceId} is not a valid service. Cannot initiate booking.` };
+    return { success: true, detailsProvided: input, message: "Tool call successful." };
   }
 );
 
@@ -59,53 +81,46 @@ export async function chatWithBot(input: ChatInput): Promise<ChatOutput> {
   return chatFlow(input);
 }
 
-const serviceListForPrompt = SERVICES_DATA.map(s => `- ${s.name} (ID: ${s.id})`).join('\n');
+const serviceListForPrompt = SERVICES_DATA.map(s => `- ${s.name} (ID: ${s.id}, Price: ₹${s.price.toFixed(2)})`).join('\n');
+const timeSlotsForPrompt = MOCK_TIME_SLOTS.join(', ');
 
 const chatPrompt = ai.definePrompt({
   name: 'chatFlowPrompt',
   input: {schema: ChatInputSchema},
   tools: [initiateAppointmentBookingTool],
   prompt: `You are "MediBuddy", a friendly and helpful AI assistant for ${APP_NAME}, a modern medical clinic.
-Your goal is to assist users with information about our services, help them understand how to book appointments, answer general questions about our clinic, and provide general, commonly-known wellness tips that are NOT specific medical advice.
+Your goal is to assist users with information about our services, help them book appointments, answer general questions about our clinic, and provide general, commonly-known wellness tips that are NOT specific medical advice.
 
-You can talk about:
-- Our available services (General Consultation, Cardiology, Physiotherapy, Dermatology, Ophthalmology, Pediatrics). You can find details about these services in the app.
-- How to book an appointment using the online form.
-- General information about ${APP_NAME}.
-- General wellness topics and commonly known, non-prescriptive tips for minor, non-urgent issues (e.g., "for a common cold, it's generally advised to get plenty of rest and stay hydrated," or "for a minor headache, ensure you're hydrated and consider resting in a quiet, dark room.").
+Available services at ${APP_NAME} (service name, ID, and price):
+${serviceListForPrompt}
+
+Available time slots for appointments: ${timeSlotsForPrompt}.
+
+If the user expresses clear intent to book an appointment for one of these specific services:
+1. First, confirm the service they want to book.
+2. Then, ask for their full name.
+3. After getting their name, ask for their email address.
+4. After getting their email, ask for their phone number (optional, they can skip).
+5. Then, ask them for their preferred date for the appointment. They should provide it in YYYY-MM-DD format.
+6. Finally, ask them for their preferred time from the list of available time slots: ${timeSlotsForPrompt}. They should provide it in HH:MM AM/PM format.
+7. Once you have ALL these details (service ID, patient name, patient email, (optional) patient phone, date in YYYY-MM-DD, and time in HH:MM AM/PM format), use the "initiateAppointmentBookingTool" with all this collected information.
+8. If the user only mentions a service they want to book but does not want to provide all details in the chat, or if you cannot gather all details after trying, use the "initiateAppointmentBookingTool" with only the 'serviceId'.
+9. Do NOT ask for payment details in chat. Booking confirmation in chat is provisional; payment is handled separately if redirected to form, or implied if booked directly (for this simulation).
 
 IMPORTANT:
 - You MUST NOT provide any specific medical advice, diagnosis, or treatment suggestions for individual conditions. Your wellness tips should be very general, widely accepted, and not personalized.
-- If a user asks for specific medical advice, describes symptoms that could be serious, or asks for a diagnosis, you MUST politely decline and strongly suggest they book an appointment with one of our qualified doctors or seek urgent medical attention if appropriate. For example, say: "While I can share some general wellness information, I'm not qualified to give specific medical advice for your situation. It's best to book an appointment with a doctor who can help." or "For serious concerns, please seek medical attention promptly."
-- If you don't know the answer to something, say "I'm sorry, I don't have information on that, but you can try contacting our support or booking an appointment."
-- Keep your responses concise and easy to understand.
-- Be empathetic and patient.
-
-Available services at ${APP_NAME} that can be booked (service name and ID):
-${serviceListForPrompt}
-
-If the user clearly states they want to book one of these specific services, use the "initiateAppointmentBooking" tool. Provide the exact service ID (e.g., "general-consultation", "cardiology"). Only use the tool if they are asking to BOOK. For general questions about services, just answer normally.
+- If a user asks for specific medical advice, describes symptoms that could be serious, or asks for a diagnosis, you MUST politely decline and strongly suggest they book an appointment with one of our qualified doctors or seek urgent medical attention if appropriate.
+- If you don't know the answer to something, say "I'm sorry, I don't have information on that."
+- Keep your responses concise and easy to understand. Be empathetic and patient.
 
 User's question: {{{userInput}}}
 Answer as MediBuddy.`,
-  config: { 
+  config: {
       safetySettings: [
-        {
-          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-          threshold: 'BLOCK_MEDIUM_AND_ABOVE', 
-        },
-        {
-          category: 'HARM_CATEGORY_HATE_SPEECH',
-          threshold: 'BLOCK_ONLY_HIGH',
-        },
-        {
-          category: 'HARM_CATEGORY_HARASSMENT',
-          threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-        },
-        {
-          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-          threshold: 'BLOCK_MEDIUM_AND_ABOVE', 
-        },
+        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
       ],
     }
 });
@@ -118,43 +133,73 @@ const chatFlow = ai.defineFlow(
   },
   async (input: ChatInput): Promise<ChatOutput> => {
     const llmResponse = await chatPrompt(input);
-    const allToolRequests = llmResponse.toolRequests; // Access tool requests as a property
+    const allToolRequests = llmResponse.toolRequests;
 
     if (allToolRequests && allToolRequests.length > 0) {
-      // Find if our specific tool was called.
-      // Assuming ToolRequestPart has { name: string, input: any } or { name: string, args: any }
-      // Genkit's ToolRequest (part of ToolRequestPart) is typically { name: string, input: T }
       const bookingToolCall = allToolRequests.find(
         (req: { name: string, input: unknown }) => req.name === initiateAppointmentBookingTool.name
       );
 
       if (bookingToolCall) {
-        const toolCallInput = bookingToolCall.input as { serviceId: string }; // Type assertion for safety
+        const toolCallInput = bookingToolCall.input as z.infer<typeof AppointmentBookingToolInputSchema>;
         const service = SERVICES_DATA.find(s => s.id === toolCallInput.serviceId);
 
-        if (service) {
+        if (!service) {
+          return { botResponse: `I couldn't find a service with ID "${toolCallInput.serviceId}". Can you clarify which service you meant from the list?` };
+        }
+
+        // Check if all details for direct booking are present
+        if (toolCallInput.patientName && toolCallInput.patientEmail && toolCallInput.desiredDateStr && toolCallInput.desiredTimeStr) {
+          // Attempt to parse date - very basic, in a real app, use a robust library and validation
+          let isValidDate = false;
+          let parsedDate = new Date();
+          try {
+            parsedDate = new Date(toolCallInput.desiredDateStr);
+            // Check if date is valid and not in the past (allowing today)
+            const today = new Date();
+            today.setHours(0,0,0,0); // Compare dates only
+            if (!isNaN(parsedDate.getTime()) && parsedDate >= today) {
+                isValidDate = true;
+            }
+          } catch (e) { /* isValidDate remains false */ }
+
+          if (!isValidDate) {
+            return { botResponse: `The date "${toolCallInput.desiredDateStr}" doesn't seem valid or is in the past. Please provide a date in YYYY-MM-DD format for today or a future date.` };
+          }
+          if (!MOCK_TIME_SLOTS.includes(toolCallInput.desiredTimeStr)) {
+             return { botResponse: `The time "${toolCallInput.desiredTimeStr}" is not a valid slot. Please choose from: ${timeSlotsForPrompt}.` };
+          }
+
+          const transactionId = `CHATRCPT-${Date.now()}`;
+          const confirmationMessage = `Great! Your appointment for ${service.name} with ${toolCallInput.patientName} on ${toolCallInput.desiredDateStr} at ${toolCallInput.desiredTimeStr} is provisionally booked. Your reference ID is ${transactionId}.`;
+          
           return {
-            botResponse: `Great! I'll help you book an appointment for ${service.name}. Please wait while I redirect you.`,
-            bookingInitiation: { serviceId: service.id, serviceName: service.name },
+            botResponse: confirmationMessage,
+            bookingConfirmation: {
+              transactionId,
+              serviceId: service.id,
+              serviceName: service.name,
+              date: toolCallInput.desiredDateStr, // Pass as string
+              time: toolCallInput.desiredTimeStr,
+              patientName: toolCallInput.patientName,
+              patientEmail: toolCallInput.patientEmail,
+              patientPhone: toolCallInput.patientPhone || '',
+              price: service.price,
+              receiptUrl: `/receipt?transactionId=${transactionId}`,
+            },
           };
         } else {
-          // This case should be rare if the LLM follows instructions, but handle it.
+          // Not all details present, initiate redirect to form
           return {
-            botResponse: `I tried to start a booking, but I couldn't find a service with ID "${toolCallInput.serviceId}". Can you tell me which service you'd like from the list?`,
+            botResponse: `Okay, I'll help you book an appointment for ${service.name}. Please wait while I redirect you to the booking form to complete the details.`,
+            bookingInitiation: { serviceId: service.id, serviceName: service.name },
           };
         }
       }
-      // If other tools were defined, they could be checked and handled here.
     }
 
-    // If the 'initiateAppointmentBookingTool' was not called or not found and processed,
-    // or if there were no tool_requests at all, rely on the text response.
-    const textResponse = llmResponse.text; // In Genkit v1.x, .text is a property
-
-    // Ensure botResponse is always a string, as per ChatOutputSchema.
-    // If textResponse is null/undefined/empty and no relevant tool call was made and handled, provide a default message.
+    const textResponse = llmResponse.text;
     if (textResponse === null || typeof textResponse === 'undefined' || textResponse.trim() === "") {
-        // This path means there's genuinely no text output from the LLM, and our specific tool wasn't successfully handled.
         return { botResponse: "I'm having a little trouble responding right now. Please try again in a moment." };
     }
     
@@ -162,3 +207,4 @@ const chatFlow = ai.defineFlow(
   }
 );
 
+    
