@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppointment } from '@/contexts/AppointmentContext';
 import type { ReceiptData } from '@/types';
@@ -9,8 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { HealthFirstLogo } from '@/components/shared/icons';
 import { format } from 'date-fns';
-import { CheckCircle, Printer, Share2, Download, CalendarDays, Clock, User, BriefcaseMedical, DollarSign, Hash, Loader2 } from 'lucide-react';
+import { CheckCircle, Printer, Share2, Download, CalendarDays, Clock, User, BriefcaseMedical, DollarSign, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export function ReceiptClient() {
   const router = useRouter();
@@ -19,6 +22,7 @@ export function ReceiptClient() {
   const { toast } = useToast();
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const receiptCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const transactionId = searchParams.get('transactionId');
@@ -28,10 +32,9 @@ export function ReceiptClient() {
       return;
     }
 
-    const appointmentData = getAppointmentById(transactionId) as ReceiptData | undefined; // Cast as ReceiptData, assuming id is transactionId
+    const appointmentData = getAppointmentById(transactionId) as ReceiptData | undefined;
     
     if (appointmentData) {
-       // Ensure paymentDate is set if it wasn't stored before
       const finalReceiptData: ReceiptData = {
         ...appointmentData,
         paymentDate: appointmentData.paymentDate || new Date() 
@@ -39,10 +42,9 @@ export function ReceiptClient() {
       setReceipt(finalReceiptData);
     } else {
       toast({ variant: "destructive", title: "Error", description: "Receipt not found. It might have expired or is invalid." });
-      router.push('/dashboard'); // Or home
+      router.push('/dashboard');
     }
     setIsLoading(false);
-    // Clear current booking flow data after receipt is shown
     clearCurrentAppointment();
     
   }, [searchParams, getAppointmentById, router, toast, clearCurrentAppointment]);
@@ -53,14 +55,56 @@ export function ReceiptClient() {
     }
   };
   
-  // Dummy share and download functions
-  const handleShare = () => {
-    toast({ title: "Share (Not Implemented)", description: "This feature would typically allow sharing the receipt." });
-  };
-  const handleDownload = () => {
-    toast({ title: "Download (Not Implemented)", description: "This feature would allow downloading a PDF of the receipt." });
+  const handleDownload = async () => {
+    if (!receiptCardRef.current) {
+      toast({ variant: "destructive", title: "Error", description: "Could not find receipt content to download." });
+      return;
+    }
+    toast({ title: "Preparing PDF...", description: "Please wait a moment." });
+    try {
+      const canvas = await html2canvas(receiptCardRef.current, {
+        scale: 2, // Increase scale for better quality
+        useCORS: true, // Important for external images if any
+        onclone: (document) => {
+          // Hide buttons in the cloned document for PDF
+          const buttonsContainer = document.getElementById('receipt-actions');
+          if (buttonsContainer) {
+            buttonsContainer.style.display = 'none';
+          }
+        }
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
+      });
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.save(`HealthFirst_Receipt_${receipt?.transactionId || Date.now()}.pdf`);
+      toast({ title: "Download Started", description: "Your PDF receipt is downloading." });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({ variant: "destructive", title: "PDF Error", description: "Could not generate PDF. Please try printing instead." });
+    }
   };
 
+  const handleShare = async () => {
+    if (receipt && navigator.share) {
+      try {
+        await navigator.share({
+          title: `${APP_NAME} Appointment Receipt`,
+          text: `Receipt for ${receipt.serviceName} on ${format(new Date(receipt.date), 'PPP')} at ${receipt.time}. Transaction ID: ${receipt.transactionId}`,
+          url: window.location.href, // Shares the current receipt page URL
+        });
+        toast({ title: "Shared!", description: "Receipt details shared successfully." });
+      } catch (error) {
+        console.error('Error sharing:', error);
+        toast({ variant: "destructive", title: "Share Failed", description: "Could not share the receipt." });
+      }
+    } else {
+      toast({ title: "Share Not Available", description: "Web Share API is not supported on your browser or device. You can try copying the URL." });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -71,7 +115,6 @@ export function ReceiptClient() {
   }
 
   if (!receipt) {
-     // Already handled by redirect in useEffect, but as a fallback:
     return (
       <div className="container py-12 md:py-16 text-center">
         <h1 className="text-2xl font-bold">Receipt Not Found</h1>
@@ -83,7 +126,7 @@ export function ReceiptClient() {
 
   return (
     <div className="container py-12 md:py-16 bg-secondary/30 print:bg-white">
-      <Card className="max-w-2xl mx-auto shadow-xl print:shadow-none print:border-none">
+      <Card ref={receiptCardRef} id="receiptCardToPrint" className="max-w-2xl mx-auto shadow-xl print:shadow-none print:border-none">
         <CardHeader className="bg-primary/10 print:bg-transparent p-6 rounded-t-lg">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
             <div className="flex items-center gap-3 mb-4 sm:mb-0">
@@ -173,7 +216,7 @@ export function ReceiptClient() {
             )}
           </div>
           
-          <div className="mt-8 pt-6 border-t print:hidden">
+          <div id="receipt-actions" className="mt-8 pt-6 border-t print:hidden">
             <p className="text-xs text-muted-foreground text-center mb-4">
               If you have any questions regarding your appointment, please contact us.
             </p>
