@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAppointment } from '@/contexts/AppointmentContext';
 import { SERVICES_DATA } from '@/lib/constants';
 import type { Service } from '@/types';
-import { AlertCircle, CheckCircle, CreditCard, CalendarDays, User, BriefcaseMedical, DollarSign, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, CreditCard, CalendarDays, User, BriefcaseMedical, DollarSign, Loader2 } from 'lucide-react'; // DollarSign is used as an icon
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const paymentFormSchema = z.object({
@@ -96,7 +96,7 @@ export function PaymentClient() {
     // Simulate payment processing
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const transactionId = `RCPT-${Date.now()}`; // Updated format
+    const transactionId = `RCPT-${Date.now()}`;
     const receiptData = confirmAppointment({ transactionId });
     
     setIsLoading(false);
@@ -139,7 +139,7 @@ export function PaymentClient() {
              <hr className="my-3"/>
             <div className="flex justify-between text-lg font-semibold">
               <span className="text-muted-foreground flex items-center"><DollarSign className="mr-2 h-5 w-5 text-primary"/>Total Amount:</span>
-              <span className="text-primary">${serviceDetails.price.toFixed(2)}</span>
+              <span className="text-primary">₹{serviceDetails.price.toFixed(2)}</span>
             </div>
           </CardContent>
         </Card>
@@ -212,7 +212,7 @@ export function PaymentClient() {
                 </Alert>
                 <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DollarSign className="mr-2 h-4 w-4" /> }
-                  Pay ${serviceDetails.price.toFixed(2)} & Confirm
+                  Pay ₹{serviceDetails.price.toFixed(2)} & Confirm
                 </Button>
               </form>
             </Form>

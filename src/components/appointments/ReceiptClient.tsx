@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { HealthFirstLogo } from '@/components/shared/icons';
 import { format } from 'date-fns';
-import { CheckCircle, Printer, Share2, Download, CalendarDays, Clock, User, BriefcaseMedical, DollarSign, Loader2, Info } from 'lucide-react';
+import { CheckCircle, Printer, Share2, Download, CalendarDays, Clock, User, BriefcaseMedical, DollarSign, Loader2, Info } from 'lucide-react'; // DollarSign is used as an icon
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -174,7 +174,7 @@ export function ReceiptClient() {
               <DollarSign className="h-5 w-5 text-primary mr-3 mt-1 shrink-0" />
               <div>
                 <span className="text-muted-foreground">Amount Paid:</span><br/>
-                <strong className="text-base">${receipt.price.toFixed(2)}</strong>
+                <strong className="text-base">₹{receipt.price.toFixed(2)}</strong>
               </div>
             </div>
             <div className="flex items-start">

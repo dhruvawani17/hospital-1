@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from 'next/image';
@@ -38,7 +39,7 @@ export function ServiceItemCard({ service }: ServiceItemCardProps) {
           {service.icon && <service.icon className="h-7 w-7 text-primary" />}
           {service.name}
         </CardTitle>
-        <CardDescription className="text-accent font-semibold">${service.price.toFixed(2)}</CardDescription>
+        <CardDescription className="text-accent font-semibold">₹{service.price.toFixed(2)}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
         <p className="text-muted-foreground line-clamp-4">{service.description}</p>
