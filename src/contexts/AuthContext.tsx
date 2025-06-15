@@ -41,7 +41,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       uid: "mock-user-123",
       displayName: displayName || "Demo User", // Use provided name or default
       email: "demo.user@example.com", // This would come from form in a real app for manual login
-      photoURL: "https://placehold.co/100x100.png"
+      photoURL: "https://placehold.co/100x100.png", // Placeholder image
+      dataAiHint: "profile avatar" // Hint for AI image generation
     };
     try {
       localStorage.setItem(MOCK_USER_KEY, JSON.stringify(mockUser));
@@ -77,3 +78,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+

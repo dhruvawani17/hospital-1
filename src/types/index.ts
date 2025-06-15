@@ -18,7 +18,6 @@ export interface AppointmentFormData {
   patientName: string;
   patientEmail: string;
   patientPhone: string;
-  // patientPreferences?: string; // Removed
 }
 
 export interface Appointment extends AppointmentFormData {
@@ -26,7 +25,6 @@ export interface Appointment extends AppointmentFormData {
   serviceName: string;
   status: 'pending' | 'confirmed' | 'cancelled';
   price: number;
-  // patientPreferences?: string; // Removed
 }
 
 export interface User {
@@ -34,12 +32,12 @@ export interface User {
   displayName: string | null;
   email: string | null;
   photoURL?: string | null;
+  dataAiHint?: string; // Added to match AuthContext
 }
 
 export interface ReceiptData extends Appointment {
   transactionId: string;
   paymentDate: Date;
-  // patientPreferences?: string; // Removed
 }
 
 export interface Doctor {
@@ -52,3 +50,4 @@ export interface Doctor {
   dataAiHint?: string;
   specialtyIcon?: React.ElementType;
 }
+
