@@ -5,10 +5,10 @@ import type { User } from "@/types";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
-import { 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  onAuthStateChanged, 
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  onAuthStateChanged,
   signOut as firebaseSignOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -47,10 +47,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           dataAiHint: firebaseUser.photoURL ? "user profile" : undefined,
         };
         setUser(appUser);
-        // console.log("User set from onAuthStateChanged:", appUser);
+        console.log("[AuthContext] User set from onAuthStateChanged:", appUser);
       } else {
         setUser(null);
-        // console.log("User set to null from onAuthStateChanged");
+        console.log("[AuthContext] User set to null from onAuthStateChanged");
       }
       setLoading(false);
     });
@@ -59,16 +59,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const handleAuthSuccess = useCallback(() => {
-    // Read searchParams directly from window.location on client-side success event
     const currentSearchParams = new URLSearchParams(window.location.search);
     const redirectUrl = currentSearchParams.get('redirect') || '/dashboard';
+    console.log("[AuthContext] Auth success, redirecting to:", redirectUrl);
     router.push(redirectUrl);
   }, [router]);
 
   const handleAuthError = (error: AuthError) => {
-    console.error("Firebase Auth Error Code:", error.code); 
-    console.error("Firebase Auth Error Message:", error.message);
-    
+    console.error("[AuthContext] Firebase Auth Error Code:", error.code);
+    console.error("[AuthContext] Firebase Auth Error Message:", error.message);
+
     let message = "An unknown error occurred.";
     switch (error.code) {
         case "auth/email-already-in-use":
@@ -86,11 +86,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         case "auth/user-disabled":
             message = "This user account has been disabled.";
             break;
-        case "auth/user-not-found": 
-        case "auth/invalid-credential": 
+        case "auth/user-not-found":
+        case "auth/invalid-credential":
             message = "Invalid credentials. Please check your email and password.";
             break;
-        case "auth/wrong-password": 
+        case "auth/wrong-password":
             message = "Incorrect password. Please try again.";
             break;
         case "auth/popup-closed-by-user":
@@ -112,9 +112,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const loginWithGoogle = useCallback(async () => { 
+  const loginWithGoogle = useCallback(async () => {
     setLoading(true);
-    console.log("Attempting Google Sign-In...");
+    console.log("[AuthContext] Attempting Google Sign-In...");
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
@@ -125,12 +125,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }
   }, [handleAuthSuccess, toast]);
-  
+
   const signUpWithEmail = useCallback(async (email: string, password: string, displayName: string): Promise<boolean> => {
     setLoading(true);
+    console.log("[AuthContext] Attempting Email Sign-Up for:", email);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName });
+      // `onAuthStateChanged` will handle setting the user state
       handleAuthSuccess();
       return true;
     } catch (error) {
@@ -143,8 +145,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithEmail = useCallback(async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
+    console.log("[AuthContext] Attempting Email Sign-In for:", email);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // `onAuthStateChanged` will handle setting the user state
       handleAuthSuccess();
       return true;
     } catch (error) {
@@ -157,11 +161,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     setLoading(true);
+    console.log("[AuthContext] Attempting Sign-Out...");
     try {
       await firebaseSignOut(auth);
-      router.push("/"); 
+      // `onAuthStateChanged` will handle setting user to null
+      router.push("/");
+      console.log("[AuthContext] Sign-Out successful, navigated to /");
     } catch (error) {
-      console.error("Firebase Sign-Out Error:", error);
+      console.error("[AuthContext] Firebase Sign-Out Error:", error);
       toast({ variant: "destructive", title: "Logout Failed", description: (error as AuthError).message });
     } finally {
       setLoading(false);

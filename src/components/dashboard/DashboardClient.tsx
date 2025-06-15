@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { CalendarDays, Clock, BriefcaseMedical, User, ListChecks, PlusCircle, XCircle, AlertTriangle, Loader2, Info } from 'lucide-react';
-// Removed Image import as it's no longer used for placeholder
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +31,11 @@ export function DashboardClient() {
 
   // Appointments are already sorted by date in the context
   const userAppointments = confirmedAppointments;
+
+  console.log("[DashboardClient] Rendering. User:", user);
+  console.log("[DashboardClient] isLoadingAppointments:", isLoadingAppointments);
+  console.log("[DashboardClient] userAppointments (from context):", userAppointments);
+
 
   if (!user) {
     // This case should ideally be handled by ProtectedRoute, but good to have a fallback.
@@ -56,17 +60,17 @@ export function DashboardClient() {
         title: "Cancellation Failed",
         description: "Could not cancel the appointment. Please try again.",
       });
-      console.error("Cancellation error:", error);
+      console.error("[DashboardClient] Cancellation error:", error);
     }
   };
-  
+
   const getStatusClass = (status: Appointment['status']) => {
     switch (status) {
       case 'confirmed':
         return 'text-green-600 font-semibold';
       case 'cancelled':
         return 'text-red-600 font-semibold';
-      case 'pending': 
+      case 'pending':
         return 'text-orange-500 font-semibold';
       default:
         return 'text-muted-foreground';
@@ -100,10 +104,10 @@ export function DashboardClient() {
             </div>
           ) : userAppointments.length === 0 ? (
             <div className="text-center py-12">
-              {/* Removed placeholder image */}
               <ListChecks className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">No Appointments Yet</h3>
               <p className="text-muted-foreground mb-6">You haven't scheduled any appointments. Book one today!</p>
+              {user?.uid && <p className="text-xs text-muted-foreground">Querying for user ID: {user.uid}</p>}
             </div>
           ) : (
             <div className="space-y-6">

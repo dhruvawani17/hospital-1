@@ -5,14 +5,14 @@ import type { Appointment, AppointmentFormData, ReceiptData, Service } from "@/t
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { SERVICES_DATA, APP_NAME } from "@/lib/constants";
 import { db } from "@/lib/firebase";
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  doc, 
-  updateDoc, 
-  query, 
-  where, 
+import {
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  updateDoc,
+  query,
+  where,
   Timestamp,
   orderBy,
   serverTimestamp
@@ -28,7 +28,7 @@ interface AppointmentContextType {
   confirmAppointment: (paymentDetails: { transactionId: string }) => Promise<ReceiptData | null>;
   getAppointmentByTransactionId: (transactionId: string) => Promise<Appointment | null>;
   clearCurrentAppointment: () => void;
-  cancelAppointment: (appointmentId: string) => Promise<void>; // appointmentId is Firestore doc ID
+  cancelAppointment: (appointmentId: string) => Promise<void>;
 }
 
 const AppointmentContext = createContext<AppointmentContextType | undefined>(undefined);
@@ -40,39 +40,45 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isLoadingAppointments, setIsLoadingAppointments] = useState(true);
 
   const fetchAppointments = useCallback(async (userId: string) => {
+    console.log("[AppointmentContext] fetchAppointments called for userId:", userId);
     setIsLoadingAppointments(true);
     try {
       const q = query(
-        collection(db, "appointments"), 
+        collection(db, "appointments"),
         where("userId", "==", userId),
         orderBy("createdAt", "desc")
       );
       const querySnapshot = await getDocs(q);
       const appointments: Appointment[] = [];
-      querySnapshot.forEach((docSnap) => { // Renamed doc to docSnap to avoid conflict with outer doc
+      console.log("[AppointmentContext] querySnapshot size:", querySnapshot.size);
+      querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
         appointments.push({
           id: docSnap.id,
           ...data,
           date: (data.date as Timestamp).toDate(),
-          createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(), 
+          createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(),
         } as Appointment);
       });
+      console.log("[AppointmentContext] Fetched appointments array:", appointments);
       setConfirmedAppointments(appointments);
     } catch (error) {
-      console.error("Error fetching appointments from Firestore:", error);
-      setConfirmedAppointments([]); 
+      console.error("[AppointmentContext] Error fetching appointments from Firestore:", error);
+      setConfirmedAppointments([]);
     } finally {
       setIsLoadingAppointments(false);
+      console.log("[AppointmentContext] fetchAppointments finished. isLoadingAppointments:", false);
     }
-  }, []); // Empty dependency array is fine as it's called by useEffect with user.uid
+  }, []);
 
   useEffect(() => {
+    console.log("[AppointmentContext] useEffect for user changed. User:", user, "Loading state:", isLoadingAppointments);
     if (user?.uid) {
       fetchAppointments(user.uid);
     } else {
-      setConfirmedAppointments([]); 
-      setIsLoadingAppointments(false); // Ensure loading is false if no user
+      setConfirmedAppointments([]);
+      setIsLoadingAppointments(false);
+      console.log("[AppointmentContext] No user or user.uid, cleared appointments. isLoadingAppointments:", false);
     }
   }, [user, fetchAppointments]);
 
@@ -86,13 +92,13 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const confirmAppointment = useCallback(async (paymentDetails: { transactionId: string }): Promise<ReceiptData | null> => {
     if (!user?.uid || !currentAppointment || !currentAppointment.serviceId || !currentAppointment.date || !currentAppointment.time || !currentAppointment.patientName || !currentAppointment.patientEmail) {
-      console.error("Incomplete appointment data or user not logged in for confirmAppointment");
+      console.error("[AppointmentContext] Incomplete appointment data or user not logged in for confirmAppointment. Current appointment:", currentAppointment, "User:", user);
       return null;
     }
-    
+
     const service = SERVICES_DATA.find(s => s.id === currentAppointment.serviceId);
     if (!service) {
-      console.error("Service not found for appointment confirmation");
+      console.error("[AppointmentContext] Service not found for appointment confirmation. Service ID:", currentAppointment.serviceId);
       return null;
     }
 
@@ -109,26 +115,23 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       price: service.price,
       transactionId: paymentDetails.transactionId,
       createdAt: serverTimestamp(),
-      paymentDate: Timestamp.now() 
+      paymentDate: Timestamp.now()
     };
 
     try {
-      // Add to Firestore
+      console.log("[AppointmentContext] Attempting to add document to Firestore:", newAppointmentDataToSave);
       const docRef = await addDoc(collection(db, "appointments"), newAppointmentDataToSave);
-      
+      console.log("[AppointmentContext] Document added with ID:", docRef.id);
+
       // Re-fetch appointments to update the local state with server-generated timestamp
-      // This ensures data consistency.
       await fetchAppointments(user.uid);
-      
-      // Construct ReceiptData for immediate use by the receipt page
-      // Use client-side dates for `date` and `createdAt` as they were just used.
-      // `paymentDate` for receipt can also be client-side `new Date()`.
+
       const receiptData: ReceiptData = {
-        id: docRef.id, // Use the new docRef.id
+        id: docRef.id,
         userId: user.uid,
         serviceId: newAppointmentDataToSave.serviceId,
         serviceName: newAppointmentDataToSave.serviceName,
-        date: new Date(currentAppointment.date), // Use original JS Date object
+        date: new Date(currentAppointment.date),
         time: newAppointmentDataToSave.time,
         patientName: newAppointmentDataToSave.patientName,
         patientEmail: newAppointmentDataToSave.patientEmail,
@@ -136,18 +139,17 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
         status: newAppointmentDataToSave.status,
         price: newAppointmentDataToSave.price,
         transactionId: newAppointmentDataToSave.transactionId,
-        createdAt: new Date(), // This is an approximation for the receipt, actual is serverTimestamp
-        paymentDate: new Date(), // Use current client date for receipt object
+        createdAt: new Date(), // Approximation for immediate receipt
+        paymentDate: new Date(newAppointmentDataToSave.paymentDate.toDate()), // Use the timestamp converted to Date
       };
       return receiptData;
     } catch (error) {
-      console.error("Error adding appointment to Firestore in confirmAppointment:", error);
+      console.error("[AppointmentContext] Error adding appointment to Firestore in confirmAppointment:", error);
       return null;
     }
   }, [user, currentAppointment, fetchAppointments]);
 
   const getAppointmentByTransactionId = useCallback(async (transactionId: string): Promise<Appointment | null> => {
-    // User check can be optional here if transactionId is globally unique and secure
     try {
       const q = query(collection(db, "appointments"), where("transactionId", "==", transactionId));
       const querySnapshot = await getDocs(q);
@@ -163,42 +165,40 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       return null;
     } catch (error) {
-      console.error("Error fetching appointment by transactionId from Firestore:", error);
+      console.error("[AppointmentContext] Error fetching appointment by transactionId from Firestore:", error);
       return null;
     }
-  }, []); // Removed user?.uid dependency as it might not be strictly necessary if transactionId is unique
+  }, []);
 
 
   const clearCurrentAppointment = useCallback(() => {
     setCurrentAppointment(null);
   }, []);
 
-  const cancelAppointment = useCallback(async (appointmentId: string) => { 
+  const cancelAppointment = useCallback(async (appointmentId: string) => {
+    if(!user?.uid) {
+        console.error("[AppointmentContext] User not logged in, cannot cancel appointment.");
+        return;
+    }
     try {
       const appointmentRef = doc(db, "appointments", appointmentId);
       await updateDoc(appointmentRef, {
         status: 'cancelled'
       });
-      // Optimistically update local state or re-fetch
-      setConfirmedAppointments(prevAppointments =>
-        prevAppointments.map(appt =>
-          appt.id === appointmentId ? { ...appt, status: 'cancelled' } : appt
-        )
-      );
-      // Optionally, you could call fetchAppointments(user.uid) here as well if strict consistency is needed
+      // Re-fetch appointments to ensure UI is up-to-date
+      await fetchAppointments(user.uid);
     } catch (error) {
-      console.error("Error cancelling appointment in Firestore:", error);
-      // Potentially re-throw or show error to user
+      console.error("[AppointmentContext] Error cancelling appointment in Firestore:", error);
     }
-  }, []);
+  }, [user, fetchAppointments]);
 
   return (
-    <AppointmentContext.Provider value={{ 
-      currentAppointment, 
+    <AppointmentContext.Provider value={{
+      currentAppointment,
       confirmedAppointments,
-      isLoadingAppointments, 
-      startNewAppointment, 
-      updateAppointmentData, 
+      isLoadingAppointments,
+      startNewAppointment,
+      updateAppointmentData,
       confirmAppointment,
       getAppointmentByTransactionId,
       clearCurrentAppointment,
@@ -216,4 +216,3 @@ export const useAppointment = (): AppointmentContextType => {
   }
   return context;
 };
-
