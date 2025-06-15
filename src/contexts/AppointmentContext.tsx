@@ -13,6 +13,7 @@ interface AppointmentContextType {
   confirmAppointment: (paymentDetails: { transactionId: string }) => ReceiptData | null;
   getAppointmentById: (id: string) => Appointment | undefined;
   clearCurrentAppointment: () => void;
+  cancelAppointment: (appointmentId: string) => void;
 }
 
 const AppointmentContext = createContext<AppointmentContextType | undefined>(undefined);
@@ -77,7 +78,6 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       patientPhone: currentAppointment.patientPhone || '',
       status: 'confirmed',
       price: service.price,
-      // patientPreferences: currentAppointment.patientPreferences // Removed
     };
 
     setConfirmedAppointments(prev => [...prev, newAppointment]);
@@ -87,7 +87,6 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       paymentDate: new Date(),
     };
     
-    // Do not clear currentAppointment here, receipt page might need it. Clear explicitly.
     return receiptData;
   }, [currentAppointment]);
 
@@ -99,6 +98,14 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCurrentAppointment(null);
   }, []);
 
+  const cancelAppointment = useCallback((appointmentId: string) => {
+    setConfirmedAppointments(prevAppointments =>
+      prevAppointments.map(appt =>
+        appt.id === appointmentId ? { ...appt, status: 'cancelled' } : appt
+      )
+    );
+  }, []);
+
   return (
     <AppointmentContext.Provider value={{ 
       currentAppointment, 
@@ -107,7 +114,8 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       updateAppointmentData, 
       confirmAppointment,
       getAppointmentById,
-      clearCurrentAppointment
+      clearCurrentAppointment,
+      cancelAppointment
     }}>
       {children}
     </AppointmentContext.Provider>

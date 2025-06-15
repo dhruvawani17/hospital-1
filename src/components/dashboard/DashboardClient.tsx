@@ -1,28 +1,62 @@
+
 "use client";
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppointment } from '@/contexts/AppointmentContext';
 import type { Appointment } from '@/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { CalendarDays, Clock, BriefcaseMedical, User, ListChecks, PlusCircle } from 'lucide-react';
+import { CalendarDays, Clock, BriefcaseMedical, User, ListChecks, PlusCircle, XCircle, AlertTriangle } from 'lucide-react';
 import Image from 'next/image';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from '@/lib/utils';
 
 export function DashboardClient() {
   const { user } = useAuth();
-  const { confirmedAppointments } = useAppointment();
+  const { confirmedAppointments, cancelAppointment } = useAppointment();
+  const { toast } = useToast();
 
-  // Filter appointments for the current user (mock: all appointments are for the current user)
-  // In a real app, appointments would be fetched for the logged-in user.
   const userAppointments = confirmedAppointments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   if (!user) {
-    // This should ideally be handled by ProtectedRoute, but as a fallback:
     return <p>Please log in to view your dashboard.</p>;
   }
+
+  const handleCancelAppointment = (appointmentId: string) => {
+    cancelAppointment(appointmentId);
+    toast({
+      title: "Appointment Cancelled",
+      description: "The appointment has been successfully cancelled.",
+    });
+  };
+  
+  const getStatusClass = (status: Appointment['status']) => {
+    switch (status) {
+      case 'confirmed':
+        return 'text-green-600 font-semibold';
+      case 'cancelled':
+        return 'text-red-600 font-semibold';
+      case 'pending':
+        return 'text-orange-500 font-semibold';
+      default:
+        return 'text-muted-foreground';
+    }
+  };
+
 
   return (
     <div className="container py-12 md:py-16">
@@ -53,14 +87,14 @@ export function DashboardClient() {
           ) : (
             <div className="space-y-6">
               {userAppointments.map((appt) => (
-                <Card key={appt.id} className="hover:shadow-md transition-shadow">
+                <Card key={appt.id} className={cn("hover:shadow-md transition-shadow", appt.status === 'cancelled' && 'bg-muted/50 opacity-80')}>
                   <CardHeader>
                     <CardTitle className="text-xl font-headline flex items-center gap-2">
                       <BriefcaseMedical className="h-6 w-6 text-primary" />
                       {appt.serviceName}
                     </CardTitle>
                     <CardDescription className="capitalize">
-                      Status: <span className={appt.status === 'confirmed' ? 'text-green-600 font-semibold' : 'text-orange-500 font-semibold'}>{appt.status}</span>
+                      Status: <span className={getStatusClass(appt.status)}>{appt.status}</span>
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -80,12 +114,34 @@ export function DashboardClient() {
                        <span className="text-primary font-semibold">ID:</span>&nbsp;{appt.id.substring(0,10)}...
                     </div>
                   </CardContent>
-                  {/* Add actions like "View Details" or "Cancel" if needed */}
-                   <div className="p-6 pt-0">
+                   <CardFooter className="flex justify-between items-center">
                      <Button variant="outline" size="sm" asChild>
                        <Link href={`/receipt?transactionId=${appt.id}`}>View Receipt</Link>
                      </Button>
-                   </div>
+                     {appt.status === 'confirmed' && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            <XCircle className="mr-2 h-4 w-4" /> Cancel Appointment
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive"/>Confirm Cancellation</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to cancel your appointment for {appt.serviceName} on {format(new Date(appt.date), 'PPP')} at {appt.time}? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Keep Appointment</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleCancelAppointment(appt.id)} className="bg-destructive hover:bg-destructive/90">
+                              Yes, Cancel Appointment
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                     )}
+                   </CardFooter>
                 </Card>
               ))}
             </div>
