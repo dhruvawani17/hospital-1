@@ -6,8 +6,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth } from "@/lib/firebase"; // Import Firebase auth instance
 import { 
-  GoogleAuthProvider, 
-  signInWithPopup, 
+  // GoogleAuthProvider, 
+  // signInWithPopup, 
   onAuthStateChanged, 
   signOut as firebaseSignOut,
   createUserWithEmailAndPassword,
@@ -16,14 +16,14 @@ import {
   type User as FirebaseUser,
   type AuthError
 } from "firebase/auth";
-import { APP_NAME } from "@/lib/constants";
+// import { APP_NAME } from "@/lib/constants"; // APP_NAME not used directly in this file after google sign in commented
 import { useToast } from "@/hooks/use-toast";
 
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  loginWithGoogle: () => Promise<void>;
+  // loginWithGoogle: () => Promise<void>;
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<boolean>;
   signInWithEmail: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -46,8 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           displayName: firebaseUser.displayName,
           email: firebaseUser.email,
           photoURL: firebaseUser.photoURL,
-          // contactNumber remains as per type definition (optional)
-          dataAiHint: firebaseUser.photoURL ? "user profile" : undefined, // Add hint if photoURL exists
+          dataAiHint: firebaseUser.photoURL ? "user profile" : undefined,
         };
         setUser(appUser);
       } else {
@@ -113,27 +112,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const loginWithGoogle = useCallback(async () => {
-    setLoading(true);
-    console.log("Attempting Google Sign-In..."); // Log attempt
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      // onAuthStateChanged will handle setting the user
-      handleAuthSuccess();
-    } catch (error) {
-      handleAuthError(error as AuthError);
-    } finally {
-      setLoading(false);
-    }
-  }, [router, toast, searchParams]); // Added searchParams as it's used in handleAuthSuccess, which is called here
+  // const loginWithGoogle = useCallback(async () => {
+  //   setLoading(true);
+  //   console.log("Attempting Google Sign-In...");
+  //   try {
+  //     const provider = new GoogleAuthProvider();
+  //     await signInWithPopup(auth, provider);
+  //     handleAuthSuccess();
+  //   } catch (error) {
+  //     handleAuthError(error as AuthError);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }, [router, toast, searchParams]); 
   
   const signUpWithEmail = useCallback(async (email: string, password: string, displayName: string): Promise<boolean> => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName });
-      // onAuthStateChanged will update user state, then redirect
       handleAuthSuccess();
       return true;
     } catch (error) {
@@ -148,7 +145,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will update user state, then redirect
       handleAuthSuccess();
       return true;
     } catch (error) {
@@ -163,7 +159,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       await firebaseSignOut(auth);
-      // setUser(null); // onAuthStateChanged will also set user to null
       router.push("/");
     } catch (error) {
       console.error("Firebase Sign-Out Error:", error);
@@ -174,7 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [router, toast]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, signUpWithEmail, signInWithEmail, logout }}>
+    <AuthContext.Provider value={{ user, loading, /*loginWithGoogle,*/ signUpWithEmail, signInWithEmail, logout }}>
       {children}
     </AuthContext.Provider>
   );
