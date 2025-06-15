@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A simple AI chatbot flow for HealthFirst Connect.
@@ -12,6 +11,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { SERVICES_DATA, APP_NAME } from '@/lib/constants';
 import type { Service } from '@/types';
+import type { ToolRequestPart } from 'genkit'; // Import for typing if available, otherwise use 'any'
 
 const ChatInputSchema = z.object({
   userInput: z.string().describe('The message sent by the user to the chatbot.'),
@@ -116,31 +116,49 @@ const chatFlow = ai.defineFlow(
     inputSchema: ChatInputSchema,
     outputSchema: ChatOutputSchema,
   },
-  async (input: ChatInput) => {
+  async (input: ChatInput): Promise<ChatOutput> => {
     const llmResponse = await chatPrompt(input);
-    const toolCalls = llmResponse.toolCalls(initiateAppointmentBookingTool.name);
+    const allToolRequests = llmResponse.toolRequests; // Access tool requests as a property
 
-    if (toolCalls && toolCalls.length > 0) {
-      const toolCallInput = toolCalls[0].input; // This is { serviceId: "..." }
-      const service = SERVICES_DATA.find(s => s.id === toolCallInput.serviceId);
+    if (allToolRequests && allToolRequests.length > 0) {
+      // Find if our specific tool was called.
+      // Assuming ToolRequestPart has { name: string, input: any } or { name: string, args: any }
+      // Genkit's ToolRequest (part of ToolRequestPart) is typically { name: string, input: T }
+      const bookingToolCall = allToolRequests.find(
+        (req: { name: string, input: unknown }) => req.name === initiateAppointmentBookingTool.name
+      );
 
-      if (service) {
-        return {
-          botResponse: `Great! I'll help you book an appointment for ${service.name}. Please wait while I redirect you.`,
-          bookingInitiation: { serviceId: service.id, serviceName: service.name },
-        };
-      } else {
-        // This case should be rare if the LLM follows instructions, but handle it.
-        return {
-          botResponse: `I tried to start a booking, but I couldn't find a service with ID "${toolCallInput.serviceId}". Can you tell me which service you'd like from the list?`,
-        };
+      if (bookingToolCall) {
+        const toolCallInput = bookingToolCall.input as { serviceId: string }; // Type assertion for safety
+        const service = SERVICES_DATA.find(s => s.id === toolCallInput.serviceId);
+
+        if (service) {
+          return {
+            botResponse: `Great! I'll help you book an appointment for ${service.name}. Please wait while I redirect you.`,
+            bookingInitiation: { serviceId: service.id, serviceName: service.name },
+          };
+        } else {
+          // This case should be rare if the LLM follows instructions, but handle it.
+          return {
+            botResponse: `I tried to start a booking, but I couldn't find a service with ID "${toolCallInput.serviceId}". Can you tell me which service you'd like from the list?`,
+          };
+        }
       }
+      // If other tools were defined, they could be checked and handled here.
     }
 
-    const textResponse = llmResponse.text;
-    if (!textResponse) {
-      return { botResponse: "I'm having a little trouble responding right now. Please try again in a moment." };
+    // If the 'initiateAppointmentBookingTool' was not called or not found and processed,
+    // or if there were no tool_requests at all, rely on the text response.
+    const textResponse = llmResponse.text; // In Genkit v1.x, .text is a property
+
+    // Ensure botResponse is always a string, as per ChatOutputSchema.
+    // If textResponse is null/undefined/empty and no relevant tool call was made and handled, provide a default message.
+    if (textResponse === null || typeof textResponse === 'undefined' || textResponse.trim() === "") {
+        // This path means there's genuinely no text output from the LLM, and our specific tool wasn't successfully handled.
+        return { botResponse: "I'm having a little trouble responding right now. Please try again in a moment." };
     }
+    
     return { botResponse: textResponse };
   }
 );
+
