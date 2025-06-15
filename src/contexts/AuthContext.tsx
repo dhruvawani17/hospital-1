@@ -3,11 +3,11 @@
 
 import type { User } from "@/types";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation"; // useSearchParams removed
+import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { 
-  // GoogleAuthProvider, // Commented out
-  // signInWithPopup, // Commented out
+  GoogleAuthProvider, 
+  signInWithPopup, 
   onAuthStateChanged, 
   signOut as firebaseSignOut,
   createUserWithEmailAndPassword,
@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  // loginWithGoogle: () => Promise<void>; // Commented out
+  loginWithGoogle: () => Promise<void>;
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<boolean>;
   signInWithEmail: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -34,7 +34,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  // const searchParams = useSearchParams(); // Removed: This was causing issues with /_not-found prerendering
   const { toast } = useToast();
 
   useEffect(() => {
@@ -87,11 +86,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         case "auth/user-disabled":
             message = "This user account has been disabled.";
             break;
-        case "auth/user-not-found": // For signInWithEmailAndPassword
-        case "auth/invalid-credential": // Can be returned by signInWithEmailAndPassword for wrong email or password
+        case "auth/user-not-found": 
+        case "auth/invalid-credential": 
             message = "Invalid credentials. Please check your email and password.";
             break;
-        case "auth/wrong-password": // Older code, invalid-credential is more common now
+        case "auth/wrong-password": 
             message = "Incorrect password. Please try again.";
             break;
         case "auth/popup-closed-by-user":
@@ -113,26 +112,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  // const loginWithGoogle = useCallback(async () => { // Commented out
-  //   setLoading(true);
-  //   console.log("Attempting Google Sign-In...");
-  //   try {
-  //     const provider = new GoogleAuthProvider();
-  //     await signInWithPopup(auth, provider);
-  //     handleAuthSuccess();
-  //   } catch (error) {
-  //     handleAuthError(error as AuthError);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // }, [handleAuthSuccess, toast]);
+  const loginWithGoogle = useCallback(async () => { 
+    setLoading(true);
+    console.log("Attempting Google Sign-In...");
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      handleAuthSuccess();
+    } catch (error) {
+      handleAuthError(error as AuthError);
+    } finally {
+      setLoading(false);
+    }
+  }, [handleAuthSuccess, toast]);
   
   const signUpWithEmail = useCallback(async (email: string, password: string, displayName: string): Promise<boolean> => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName });
-      // setUser({...}) // Not needed here, onAuthStateChanged will pick it up
       handleAuthSuccess();
       return true;
     } catch (error) {
@@ -147,7 +145,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // setUser({...}) // Not needed here, onAuthStateChanged will pick it up
       handleAuthSuccess();
       return true;
     } catch (error) {
@@ -162,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       await firebaseSignOut(auth);
-      router.push("/"); // Redirect to home after logout
+      router.push("/"); 
     } catch (error) {
       console.error("Firebase Sign-Out Error:", error);
       toast({ variant: "destructive", title: "Logout Failed", description: (error as AuthError).message });
@@ -172,7 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [router, toast]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, /* loginWithGoogle, */ signUpWithEmail, signInWithEmail, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, signUpWithEmail, signInWithEmail, logout }}>
       {children}
     </AuthContext.Provider>
   );
