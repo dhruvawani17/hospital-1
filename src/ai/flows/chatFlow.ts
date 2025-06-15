@@ -150,21 +150,32 @@ const chatFlow = ai.defineFlow(
 
         // Check if all details for direct booking are present
         if (toolCallInput.patientName && toolCallInput.patientEmail && toolCallInput.desiredDateStr && toolCallInput.desiredTimeStr) {
-          // Attempt to parse date - very basic, in a real app, use a robust library and validation
+          
           let isValidDate = false;
-          let parsedDate = new Date();
+          let parsedDate: Date;
           try {
-            parsedDate = new Date(toolCallInput.desiredDateStr);
-            // Check if date is valid and not in the past (allowing today)
-            const today = new Date();
-            today.setHours(0,0,0,0); // Compare dates only
-            if (!isNaN(parsedDate.getTime()) && parsedDate >= today) {
+            const [year, month, day] = toolCallInput.desiredDateStr.split('-').map(Number);
+            // Ensure components are valid numbers before creating date
+            if (isNaN(year) || isNaN(month) || isNaN(day) || month < 1 || month > 12 || day < 1 || day > 31) {
+              throw new Error("Invalid date components from input string.");
+            }
+            // Creates a date at local midnight using the provided year, month (0-indexed), and day
+            parsedDate = new Date(year, month - 1, day);
+
+            const todayDateOnly = new Date();
+            todayDateOnly.setHours(0, 0, 0, 0); // Sets to local midnight today
+
+            // Check if parsedDate is a valid date object and is not in the past
+            if (!isNaN(parsedDate.getTime()) && parsedDate >= todayDateOnly) {
                 isValidDate = true;
             }
-          } catch (e) { /* isValidDate remains false */ }
+          } catch (e) {
+            // isValidDate remains false, error will be caught below
+            console.error("Error parsing desiredDateStr:", toolCallInput.desiredDateStr, e);
+          }
 
           if (!isValidDate) {
-            return { botResponse: `The date "${toolCallInput.desiredDateStr}" doesn't seem valid or is in the past. Please provide a date in YYYY-MM-DD format for today or a future date.` };
+            return { botResponse: `The date "${toolCallInput.desiredDateStr}" doesn't seem valid, is in the past, or is not in YYYY-MM-DD format. Please provide a date for today or a future date.` };
           }
           if (!MOCK_TIME_SLOTS.includes(toolCallInput.desiredTimeStr)) {
              return { botResponse: `The time "${toolCallInput.desiredTimeStr}" is not a valid slot. Please choose from: ${timeSlotsForPrompt}.` };
@@ -179,7 +190,7 @@ const chatFlow = ai.defineFlow(
               transactionId,
               serviceId: service.id,
               serviceName: service.name,
-              date: toolCallInput.desiredDateStr, // Pass as string
+              date: toolCallInput.desiredDateStr, // Pass as string "YYYY-MM-DD"
               time: toolCallInput.desiredTimeStr,
               patientName: toolCallInput.patientName,
               patientEmail: toolCallInput.patientEmail,
