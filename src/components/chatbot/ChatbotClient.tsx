@@ -22,7 +22,7 @@ interface Message {
   sender: 'user' | 'bot';
   text: string;
   timestamp: Date;
-  receiptUrl?: string; // Optional: for "View Receipt" link
+  receiptUrl?: string; 
 }
 
 export function ChatbotClient() {
@@ -89,10 +89,9 @@ export function ChatbotClient() {
       if (response.bookingConfirmation) {
         newBotMessage.receiptUrl = response.bookingConfirmation.receiptUrl;
         
-        // Update client-side AppointmentContext
         const {
           serviceId,
-          date: dateStr, // This is YYYY-MM-DD string
+          date: dateStr,
           time,
           patientName,
           patientEmail,
@@ -102,16 +101,22 @@ export function ChatbotClient() {
 
         const serviceToBook = SERVICES_DATA.find(s => s.id === serviceId);
         if (serviceToBook) {
+          // Ensure date string is parsed correctly, assuming YYYY-MM-DD and local timezone.
+          // Add T00:00:00 to avoid timezone issues if dateStr is just YYYY-MM-DD.
+          const dateObject = new Date(dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`);
+
           const appointmentDataForContext: Partial<AppointmentFormData> & { serviceId: string } = {
             serviceId: serviceToBook.id,
-            date: new Date(dateStr + 'T00:00:00'), // Ensure date string is parsed correctly, assuming local timezone. Add T00:00:00 to avoid timezone issues.
+            date: dateObject, 
             time,
             patientName,
             patientEmail,
             patientPhone: patientPhone || '',
           };
+          // Update the current appointment details in context FIRST
           updateAppointmentData(appointmentDataForContext);
-          confirmAppointmentInContext({ transactionId }); // This saves to localStorage
+          // Then confirm it, which will use the currentAppointment from context
+          await confirmAppointmentInContext({ transactionId }); 
         } else {
            toast({ variant: "destructive", title: "Booking Error", description: `Service ID ${serviceId} mismatch during confirmation.`});
         }
@@ -240,5 +245,3 @@ export function ChatbotClient() {
     </div>
   );
 }
-
-    

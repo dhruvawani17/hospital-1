@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { CalendarDays, Clock, BriefcaseMedical, User, ListChecks, PlusCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { CalendarDays, Clock, BriefcaseMedical, User, ListChecks, PlusCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import {
   AlertDialog,
@@ -27,21 +27,38 @@ import { cn } from '@/lib/utils';
 
 export function DashboardClient() {
   const { user } = useAuth();
-  const { confirmedAppointments, cancelAppointment } = useAppointment();
+  const { confirmedAppointments, cancelAppointment, isLoadingAppointments } = useAppointment();
   const { toast } = useToast();
 
-  const userAppointments = confirmedAppointments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  // Appointments are already sorted by date in the context
+  const userAppointments = confirmedAppointments;
 
   if (!user) {
-    return <p>Please log in to view your dashboard.</p>;
+    // This case should ideally be handled by ProtectedRoute, but good to have a fallback.
+    return (
+      <div className="container py-12 md:py-16 text-center">
+        <p>Please log in to view your dashboard.</p>
+        <Button asChild className="mt-4"><Link href="/login">Login</Link></Button>
+      </div>
+    );
   }
 
-  const handleCancelAppointment = (appointmentId: string) => {
-    cancelAppointment(appointmentId);
-    toast({
-      title: "Appointment Cancelled",
-      description: "The appointment has been successfully cancelled.",
-    });
+  const handleCancelAppointment = async (appointmentId: string) // appointmentId is Firestore doc ID
+   => {
+    try {
+      await cancelAppointment(appointmentId);
+      toast({
+        title: "Appointment Cancelled",
+        description: "The appointment has been successfully cancelled.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Cancellation Failed",
+        description: "Could not cancel the appointment. Please try again.",
+      });
+      console.error("Cancellation error:", error);
+    }
   };
   
   const getStatusClass = (status: Appointment['status']) => {
@@ -50,13 +67,12 @@ export function DashboardClient() {
         return 'text-green-600 font-semibold';
       case 'cancelled':
         return 'text-red-600 font-semibold';
-      case 'pending':
+      case 'pending': // Should not happen with current Firestore logic but good to keep
         return 'text-orange-500 font-semibold';
       default:
         return 'text-muted-foreground';
     }
   };
-
 
   return (
     <div className="container py-12 md:py-16">
@@ -78,7 +94,12 @@ export function DashboardClient() {
           </Button>
         </CardHeader>
         <CardContent>
-          {userAppointments.length === 0 ? (
+          {isLoadingAppointments ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="ml-4 text-muted-foreground">Loading appointments...</p>
+            </div>
+          ) : userAppointments.length === 0 ? (
             <div className="text-center py-12">
               <Image src="https://placehold.co/300x200.png" alt="No appointments" width={300} height={200} className="mx-auto mb-6 rounded-lg" data-ai-hint="empty calendar"/>
               <h3 className="text-xl font-semibold mb-2">No Appointments Yet</h3>
@@ -111,12 +132,12 @@ export function DashboardClient() {
                       <strong>Patient:</strong>&nbsp;{appt.patientName}
                     </div>
                     <div className="flex items-center">
-                       <span className="text-primary font-semibold">ID:</span>&nbsp;{appt.id.substring(0,10)}...
+                       <span className="text-primary font-semibold">Receipt ID:</span>&nbsp;{appt.transactionId.substring(0,10)}...
                     </div>
                   </CardContent>
                    <CardFooter className="flex justify-between items-center">
                      <Button variant="outline" size="sm" asChild>
-                       <Link href={`/receipt?transactionId=${appt.id}`}>View Receipt</Link>
+                       <Link href={`/receipt?transactionId=${appt.transactionId}`}>View Receipt</Link>
                      </Button>
                      {appt.status === 'confirmed' && (
                       <AlertDialog>

@@ -4,13 +4,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppointment } from '@/contexts/AppointmentContext';
-import type { ReceiptData } from '@/types';
+import type { ReceiptData, Appointment } from '@/types'; // Ensure Appointment is imported if used
 import { APP_NAME } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { HealthFirstLogo } from '@/components/shared/icons';
 import { format } from 'date-fns';
-import { CheckCircle, Printer, Share2, Download, CalendarDays, Clock, User, BriefcaseMedical, DollarSign, Loader2, Info } from 'lucide-react'; // DollarSign is used as an icon
+import { CheckCircle, Printer, Share2, Download, CalendarDays, Clock, User, BriefcaseMedical, DollarSign, Loader2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -18,7 +18,7 @@ import html2canvas from 'html2canvas';
 export function ReceiptClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { getAppointmentById, clearCurrentAppointment } = useAppointment();
+  const { getAppointmentByTransactionId, clearCurrentAppointment } = useAppointment();
   const { toast } = useToast();
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,22 +32,43 @@ export function ReceiptClient() {
       return;
     }
 
-    const appointmentData = getAppointmentById(transactionId) as ReceiptData | undefined;
-    
-    if (appointmentData) {
-      const finalReceiptData: ReceiptData = {
-        ...appointmentData,
-        paymentDate: appointmentData.paymentDate || new Date() 
-      };
-      setReceipt(finalReceiptData);
-    } else {
-      toast({ variant: "destructive", title: "Error", description: "Receipt not found. It might have expired or is invalid." });
-      router.push('/dashboard');
-    }
-    setIsLoading(false);
+    const fetchReceiptData = async () => {
+      setIsLoading(true);
+      try {
+        const appointmentData = await getAppointmentByTransactionId(transactionId);
+        
+        if (appointmentData) {
+          // Construct ReceiptData. Assuming paymentDate might be stored or approximated.
+          // If paymentDate is part of appointmentData from Firestore, use it directly.
+          // Otherwise, createdAt could be a proxy if payment is immediate.
+          const finalReceiptData: ReceiptData = {
+            ...appointmentData,
+            paymentDate: (appointmentData as any).paymentDate ? new Date(((appointmentData as any).paymentDate as import('firebase/firestore').Timestamp).toDate()) : appointmentData.createdAt || new Date(),
+            date: new Date(appointmentData.date), // Ensure it's a JS Date
+            createdAt: new Date(appointmentData.createdAt),
+          };
+          setReceipt(finalReceiptData);
+        } else {
+          toast({ variant: "destructive", title: "Error", description: "Receipt not found. It might have expired or is invalid." });
+          router.push('/dashboard'); // or a more appropriate page
+        }
+      } catch (error) {
+        console.error("Error fetching receipt data:", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not load receipt details." });
+        router.push('/');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReceiptData();
+    // clearCurrentAppointment might be too aggressive here if user refreshes,
+    // as it clears the form state. Consider if this is still needed or how it interacts
+    // with fetching existing receipts vs. just-booked ones.
+    // For now, let's keep it to clear any pending form data.
     clearCurrentAppointment();
     
-  }, [searchParams, getAppointmentById, router, toast, clearCurrentAppointment]);
+  }, [searchParams, getAppointmentByTransactionId, router, toast, clearCurrentAppointment]);
 
   const handlePrint = () => {
     if (typeof window !== "undefined") {
@@ -157,7 +178,7 @@ export function ReceiptClient() {
           <div className="text-center mb-8">
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-semibold">Appointment Confirmed!</h2>
-            <p className="text-muted-foreground">Thank you for your payment. Your appointment is successfully booked.</p>
+            <p className="text-muted-foreground">Thank you. Your appointment is successfully booked.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">

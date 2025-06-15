@@ -4,17 +4,26 @@
 import type { User } from "@/types";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { auth } from "@/lib/firebase"; // Import Firebase auth instance
+import { 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  onAuthStateChanged, 
+  signOut as firebaseSignOut,
+  type User as FirebaseUser
+} from "firebase/auth";
+import { APP_NAME } from "@/lib/constants";
+
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (details?: { displayName?: string; email?: string; contactNumber?: string }) => void;
-  logout: () => void;
+  loginWithGoogle: () => Promise<void>;
+  mockLogin: (details: { displayName: string; email: string; contactNumber: string }) => void; // Kept for mock form
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const MOCK_USER_KEY = "healthfirst_mock_user";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -22,51 +31,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const router = useRouter();
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem(MOCK_USER_KEY);
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        const appUser: User = {
+          uid: firebaseUser.uid,
+          displayName: firebaseUser.displayName,
+          email: firebaseUser.email,
+          photoURL: firebaseUser.photoURL,
+          contactNumber: null, // Firebase Google Auth doesn't provide phone by default
+          dataAiHint: "profile avatar"
+        };
+        setUser(appUser);
+      } else {
+        setUser(null);
       }
-    } catch (error) {
-      console.error("Failed to load user from localStorage", error);
-      localStorage.removeItem(MOCK_USER_KEY);
-    }
-    setLoading(false);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const login = useCallback((details?: { displayName?: string; email?: string; contactNumber?: string }) => {
+  const loginWithGoogle = useCallback(async () => {
     setLoading(true);
-    // Simulate Sign-In
-    const mockUser: User = {
-      uid: "mock-user-123",
-      displayName: details?.displayName || "Demo User",
-      email: details?.email || "demo.user@example.com",
-      contactNumber: details?.contactNumber || null,
-      photoURL: "https://placehold.co/100x100.png", 
-      dataAiHint: "profile avatar" 
-    };
     try {
-      localStorage.setItem(MOCK_USER_KEY, JSON.stringify(mockUser));
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      // onAuthStateChanged will handle setting the user and redirecting
+      router.push("/dashboard");
     } catch (error) {
-      console.error("Failed to save user to localStorage", error);
+      console.error("Firebase Google Sign-In Error:", error);
+      // Handle error (e.g., show toast to user)
+    } finally {
+      setLoading(false);
     }
-    setUser(mockUser);
+  }, [router]);
+  
+  // Kept for the manual form, acts as a mock and does NOT use Firebase.
+  const mockLogin = useCallback((details: { displayName: string; email: string; contactNumber: string }) => {
+    setLoading(true);
+    const mockUser: User = {
+      uid: `mock-user-${Date.now()}`, // Ensure unique mock UID
+      displayName: details.displayName,
+      email: details.email,
+      contactNumber: details.contactNumber,
+      photoURL: "https://placehold.co/100x100.png",
+      dataAiHint: "profile avatar"
+    };
+    setUser(mockUser); // This user is NOT in Firebase
     setLoading(false);
     router.push("/dashboard");
+     console.warn(
+      `${APP_NAME} Dev Note: Manual form login is currently a MOCK and does NOT use Firebase. User data is not persisted in Firebase for this login type. Please use Google Sign-In for Firebase integration.`
+    );
   }, [router]);
 
-  const logout = useCallback(() => {
+
+  const logout = useCallback(async () => {
+    setLoading(true);
     try {
-      localStorage.removeItem(MOCK_USER_KEY);
+      await firebaseSignOut(auth);
+      setUser(null); // onAuthStateChanged will also set user to null
+      router.push("/");
     } catch (error) {
-      console.error("Failed to remove user from localStorage", error);
+      console.error("Firebase Sign-Out Error:", error);
+      // Handle error
+    } finally {
+      setLoading(false);
     }
-    setUser(null);
-    router.push("/");
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, mockLogin, logout }}>
       {children}
     </AuthContext.Provider>
   );
