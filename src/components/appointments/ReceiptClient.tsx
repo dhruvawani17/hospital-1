@@ -148,7 +148,7 @@ export function ReceiptClient() {
               </div>
             </div>
             <div className="text-right">
-              <p className="font-semibold">Receipt #{receipt.transactionId}</p>
+              <p className="font-semibold text-sm">Receipt No: <span className="font-mono">{receipt.transactionId}</span></p>
               <p className="text-sm text-muted-foreground">Paid on: {format(new Date(receipt.paymentDate), 'PPP p')}</p>
             </div>
           </div>

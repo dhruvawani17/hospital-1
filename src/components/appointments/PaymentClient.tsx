@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -95,7 +96,7 @@ export function PaymentClient() {
     // Simulate payment processing
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const transactionId = `txn_${Date.now()}`;
+    const transactionId = `RCPT-${Date.now()}`; // Updated format
     const receiptData = confirmAppointment({ transactionId });
     
     setIsLoading(false);
