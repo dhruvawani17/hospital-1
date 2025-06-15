@@ -1,6 +1,7 @@
 
 "use client";
 
+import React, { useState } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -12,10 +13,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { HealthFirstLogo } from "@/components/shared/icons";
 import { APP_NAME } from "@/lib/constants";
-import { Loader2, Mail, Lock, User, Phone } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info } from "lucide-react";
-
+import { Loader2, Mail, Lock, User, LogIn, UserPlus } from "lucide-react";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" {...props}>
@@ -27,31 +25,60 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-const loginFormSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  contactNumber: z.string().min(10, { message: "Contact number must be at least 10 digits." }).regex(/^\+?[0-9\s-()]+$/, "Invalid phone number format."),
+// This schema adapts based on isSignUpMode state
+const formSchema = (isSignUpMode: boolean) => z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  displayName: isSignUpMode 
+    ? z.string().min(2, { message: "Display name must be at least 2 characters." }) 
+    : z.string().optional(),
+  confirmPassword: isSignUpMode 
+    ? z.string().min(6, { message: "Please confirm your password." }) 
+    : z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (isSignUpMode) {
+    if (data.password !== data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Passwords do not match.",
+        path: ["confirmPassword"],
+      });
+    }
+  }
 });
 
-type LoginFormValues = z.infer<typeof loginFormSchema>;
+type LoginFormValues = z.infer<ReturnType<typeof formSchema>>;
 
 export function LoginClient() {
-  const { loginWithGoogle, mockLogin, loading } = useAuth();
+  const { loginWithGoogle, signUpWithEmail, signInWithEmail, loading } = useAuth();
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
+
+  const currentFormSchema = formSchema(isSignUpMode);
 
   const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginFormSchema),
+    resolver: zodResolver(currentFormSchema),
     defaultValues: {
-      name: "",
-      contactNumber: "",
       email: "",
       password: "",
+      displayName: "",
+      confirmPassword: "",
     },
+    mode: "onChange", // Re-validate on change for better UX
   });
+  
+  React.useEffect(() => {
+    form.reset({ email: "", password: "", displayName: "", confirmPassword: "" }); // Reset form when mode changes
+  }, [isSignUpMode, form]);
 
-  function onManualSubmit(data: LoginFormValues) {
-    // This uses the mockLogin which does NOT interact with Firebase
-    mockLogin({ displayName: data.name, email: data.email, contactNumber: data.contactNumber });
+
+  async function onSubmit(data: LoginFormValues) {
+    if (isSignUpMode) {
+      if (data.displayName) { // displayName should be present if isSignUpMode is true due to schema
+        await signUpWithEmail(data.email, data.password, data.displayName);
+      }
+    } else {
+      await signInWithEmail(data.email, data.password);
+    }
   }
 
   return (
@@ -62,7 +89,9 @@ export function LoginClient() {
             <HealthFirstLogo className="h-12 w-12" />
           </div>
           <CardTitle className="text-3xl font-headline">{APP_NAME}</CardTitle>
-          <CardDescription>Sign in to access your dashboard and manage appointments.</CardDescription>
+          <CardDescription>
+            {isSignUpMode ? "Create your account to get started." : "Sign in to access your dashboard."}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <Button
@@ -72,7 +101,7 @@ export function LoginClient() {
             disabled={loading}
             aria-disabled={loading}
           >
-            {loading ? (
+            {loading && !form.formState.isSubmitting ? ( // Only show loader if Google login initiated it
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             ) : (
               <GoogleIcon className="mr-3 h-5 w-5" />
@@ -86,58 +115,37 @@ export function LoginClient() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                Or use mock sign in
+                Or with email
               </span>
             </div>
           </div>
           
-          <Alert variant="default" className="bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-700">
-            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <AlertTitle className="text-blue-700 dark:text-blue-300">Developer Note</AlertTitle>
-            <AlertDescription className="text-blue-600 dark:text-blue-400 text-xs">
-              The form below is for MOCK sign-in only and does NOT use Firebase. For Firebase authentication, please use the "Sign in with Google" button.
-            </AlertDescription>
-          </Alert>
-
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onManualSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center">
-                      <User className="mr-2 h-4 w-4 text-muted-foreground" /> Full Name (Mock)
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder="John Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="contactNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center">
-                      <Phone className="mr-2 h-4 w-4 text-muted-foreground" /> Contact Number (Mock)
-                    </FormLabel>
-                    <FormControl>
-                      <Input type="tel" placeholder="(123) 456-7890" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {isSignUpMode && (
+                <FormField
+                  control={form.control}
+                  name="displayName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center">
+                        <User className="mr-2 h-4 w-4 text-muted-foreground" /> Full Name
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="John Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center">
-                      <Mail className="mr-2 h-4 w-4 text-muted-foreground" /> Email (Mock)
+                      <Mail className="mr-2 h-4 w-4 text-muted-foreground" /> Email
                     </FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="you@example.com" {...field} />
@@ -152,7 +160,7 @@ export function LoginClient() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center">
-                      <Lock className="mr-2 h-4 w-4 text-muted-foreground" /> Password (Mock)
+                      <Lock className="mr-2 h-4 w-4 text-muted-foreground" /> Password
                     </FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="••••••••" {...field} />
@@ -161,17 +169,36 @@ export function LoginClient() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={loading && form.formState.isSubmitting}>
-                {loading && form.formState.isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                Sign In (Mock)
+              {isSignUpMode && (
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center">
+                        <Lock className="mr-2 h-4 w-4 text-muted-foreground" /> Confirm Password
+                      </FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="••••••••" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              <Button type="submit" className="w-full" disabled={loading || form.formState.isSubmitting}>
+                {(loading && form.formState.isSubmitting) ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : (isSignUpMode ? <UserPlus className="mr-2 h-5 w-5"/> : <LogIn className="mr-2 h-5 w-5"/>) }
+                {isSignUpMode ? "Create Account" : "Sign In"}
               </Button>
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="text-center">
-          <p className="text-xs text-muted-foreground">
-            Google Sign-In uses Firebase. The form below is a simulated login for demo purposes.
-          </p>
+        <CardFooter className="flex flex-col items-center space-y-2 text-sm">
+          <Button variant="link" onClick={() => setIsSignUpMode(!isSignUpMode)} disabled={loading}>
+            {isSignUpMode 
+              ? "Already have an account? Sign In" 
+              : "Don't have an account? Sign Up"}
+          </Button>
         </CardFooter>
       </Card>
     </div>
