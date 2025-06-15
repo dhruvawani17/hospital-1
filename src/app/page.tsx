@@ -1,9 +1,10 @@
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle, BriefcaseMedical, CalendarDays, Users } from 'lucide-react';
-import { SERVICES_DATA, APP_NAME } from '@/lib/constants';
+import { CheckCircle, BriefcaseMedical, CalendarDays, Users, Award, Stethoscope } from 'lucide-react'; // Added Award, Stethoscope
+import { SERVICES_DATA, APP_NAME, DOCTORS_DATA } from '@/lib/constants'; // Added DOCTORS_DATA
 
 export default function HomePage() {
   const featuredServices = SERVICES_DATA.slice(0, 3);
@@ -97,8 +98,63 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Call to Action Section */}
+      {/* Meet Our Doctors Section */}
       <section className="w-full py-16 md:py-24">
+        <div className="container px-4 md:px-6">
+          <h2 className="text-3xl font-headline font-bold text-center mb-4">Meet Our Experienced Doctors</h2>
+          <p className="max-w-2xl mx-auto text-lg text-muted-foreground text-center mb-12">
+            Our dedicated team of medical professionals is here to provide you with exceptional care.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {DOCTORS_DATA.map((doctor, index) => (
+              <Card key={doctor.id} className="overflow-hidden animate-slide-in-up flex flex-col" style={{animationDelay: `${0.15 * (index + 1)}s`}}>
+                <div className="relative w-full h-64 sm:h-72">
+                  <Image
+                    src={doctor.image}
+                    alt={doctor.name}
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover object-top"
+                    data-ai-hint={doctor.dataAiHint || "doctor portrait"}
+                  />
+                </div>
+                <CardHeader>
+                  <CardTitle className="font-headline text-xl">{doctor.name}</CardTitle>
+                  <CardDescription className="flex items-center gap-1.5 text-primary">
+                    {doctor.specialtyIcon ? <doctor.specialtyIcon className="h-5 w-5" /> : <Stethoscope className="h-5 w-5" />}
+                    {doctor.specialty}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow space-y-2 text-sm">
+                  <div className="flex items-start gap-2">
+                    <Award className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold">Qualifications</h4>
+                      <p className="text-muted-foreground">{doctor.qualifications}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <BriefcaseMedical className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold">Experience</h4>
+                      <p className="text-muted-foreground">{doctor.experience}</p>
+                    </div>
+                  </div>
+                </CardContent>
+                {/* Optional: Add a button to book with specific doctor later */}
+                {/* <CardFooter>
+                  <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                    Book with {doctor.name.split(' ')[1]}
+                  </Button>
+                </CardFooter> */}
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Call to Action Section */}
+      <section className="w-full py-16 md:py-24 bg-secondary/50">
         <div className="container px-4 md:px-6 text-center">
           <h2 className="text-3xl font-headline font-bold mb-6">Ready to Prioritize Your Health?</h2>
           <p className="max-w-xl mx-auto text-muted-foreground mb-8">
@@ -112,3 +168,4 @@ export default function HomePage() {
     </div>
   );
 }
+

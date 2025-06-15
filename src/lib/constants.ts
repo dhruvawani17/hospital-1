@@ -1,5 +1,6 @@
+
 import type { Service } from '@/types';
-import { Stethoscope, HeartPulse, Activity, ShieldCheck, Eye, Baby } from 'lucide-react';
+import { Stethoscope, HeartPulse, Activity, ShieldCheck, Eye, Baby, Award, BriefcaseMedical as BriefcaseIcon } from 'lucide-react'; // Renamed to avoid conflict
 
 export const APP_NAME = "HealthFirst Connect";
 
@@ -35,7 +36,7 @@ export const SERVICES_DATA: Service[] = [
     id: 'dermatology',
     name: 'Dermatology',
     description: 'Expert care for skin, hair, and nail conditions, including cosmetic dermatology.',
-    icon: ShieldCheck, // Using ShieldCheck as a stand-in for skin/protection
+    icon: ShieldCheck, 
     image: 'https://placehold.co/600x400.png',
     dataAiHint: 'skin care',
     price: 100,
@@ -65,4 +66,78 @@ export const DOCTOR_AVAILABILITY_STRING = "Available Monday to Friday from 9:00 
 export const MOCK_TIME_SLOTS = [
   "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
   "01:00 PM", "01:30 PM", "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM"
+];
+
+export interface Doctor {
+  id: string;
+  name: string;
+  specialty: string;
+  qualifications: string;
+  experience: string;
+  image: string;
+  dataAiHint?: string;
+  specialtyIcon?: React.ElementType;
+}
+
+export const DOCTORS_DATA: Doctor[] = [
+  {
+    id: 'dr-emily-carter',
+    name: 'Dr. Emily Carter',
+    specialty: 'General Physician',
+    qualifications: 'MD, FACP',
+    experience: '12+ years of practice',
+    image: 'https://placehold.co/400x400.png',
+    dataAiHint: 'doctor portrait',
+    specialtyIcon: Stethoscope,
+  },
+  {
+    id: 'dr-benjamin-lee',
+    name: 'Dr. Benjamin Lee',
+    specialty: 'Cardiologist',
+    qualifications: 'MD, FACC, PhD',
+    experience: '15+ years in heart care',
+    image: 'https://placehold.co/400x400.png',
+    dataAiHint: 'doctor portrait',
+    specialtyIcon: HeartPulse,
+  },
+  {
+    id: 'dr-olivia-davis',
+    name: 'Dr. Olivia Davis',
+    specialty: 'Pediatrician',
+    qualifications: 'MD, FAAP',
+    experience: '8+ years with children',
+    image: 'https://placehold.co/400x400.png',
+    dataAiHint: 'doctor portrait',
+    specialtyIcon: Baby,
+  },
+  {
+    id: 'dr-marcus-chen',
+    name: 'Dr. Marcus Chen',
+    specialty: 'Dermatologist',
+    qualifications: 'MD, FAAD',
+    experience: '10+ years in skin health',
+    image: 'https://placehold.co/400x400.png',
+    dataAiHint: 'doctor portrait',
+    specialtyIcon: ShieldCheck,
+  },
+  {
+    id: 'dr-sophia-miller',
+    name: 'Dr. Sophia Miller',
+    specialty: 'Orthopedic Surgeon',
+    qualifications: 'MD, FRCS',
+    experience: '7+ years in orthopedics',
+    image: 'https://placehold.co/400x400.png',
+    dataAiHint: 'doctor portrait',
+    specialtyIcon: Activity, // Using Activity as a proxy for orthopedics/movement
+  },
+  {
+    id: 'dr-david-wilson',
+    name: 'Dr. David Wilson',
+    specialty: 'Neurologist',
+    qualifications: 'MD, PhD, FAAN',
+    experience: '18+ years in neurological care',
+    image: 'https://placehold.co/400x400.png',
+    dataAiHint: 'doctor portrait',
+    // No direct icon for neurologist, can omit or use a generic one if needed
+  },
 ];

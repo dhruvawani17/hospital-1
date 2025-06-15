@@ -1,3 +1,4 @@
+
 import type React from 'react';
 
 export interface Service {
@@ -37,4 +38,15 @@ export interface User {
 export interface ReceiptData extends Appointment {
   transactionId: string;
   paymentDate: Date;
+}
+
+export interface Doctor {
+  id: string;
+  name: string;
+  specialty: string;
+  qualifications: string;
+  experience: string;
+  image: string;
+  dataAiHint?: string;
+  specialtyIcon?: React.ElementType;
 }
