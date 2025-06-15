@@ -12,7 +12,7 @@ export const SERVICES_DATA: Service[] = [
     icon: Stethoscope,
     image: 'https://placehold.co/600x400.png',
     dataAiHint: 'doctor patient',
-    price: 4000, // Updated from 50
+    price: 4000,
   },
   {
     id: 'cardiology',
@@ -21,7 +21,7 @@ export const SERVICES_DATA: Service[] = [
     icon: HeartPulse,
     image: 'https://placehold.co/600x400.png',
     dataAiHint: 'heart health',
-    price: 12000, // Updated from 150
+    price: 12000,
   },
   {
     id: 'physiotherapy',
@@ -30,7 +30,7 @@ export const SERVICES_DATA: Service[] = [
     icon: Activity,
     image: 'https://placehold.co/600x400.png',
     dataAiHint: 'physical therapy',
-    price: 6000, // Updated from 75
+    price: 6000,
   },
   {
     id: 'dermatology',
@@ -39,7 +39,7 @@ export const SERVICES_DATA: Service[] = [
     icon: ShieldCheck,
     image: 'https://placehold.co/600x400.png',
     dataAiHint: 'skin care',
-    price: 8000, // Updated from 100
+    price: 8000,
   },
   {
     id: 'ophthalmology',
@@ -48,7 +48,7 @@ export const SERVICES_DATA: Service[] = [
     icon: Eye,
     image: 'https://placehold.co/600x400.png',
     dataAiHint: 'eye exam',
-    price: 9600, // Updated from 120
+    price: 9600,
   },
   {
     id: 'pediatrics',
@@ -57,7 +57,7 @@ export const SERVICES_DATA: Service[] = [
     icon: Baby,
     image: 'https://placehold.co/600x400.png',
     dataAiHint: 'child doctor',
-    price: 4800, // Updated from 60
+    price: 4800,
   },
 ];
 
@@ -137,7 +137,8 @@ export const DOCTORS_DATA: Doctor[] = [
     qualifications: 'MD, PhD, FAAN',
     experience: '18+ years in neurological care',
     image: 'https://placehold.co/400x400.png',
-    dataAiHint: 'doctor portrait',
+    dataAiHint: 'neurologist portrait', // Made hint more specific
     // No direct icon for neurologist, can omit or use a generic one if needed
   },
 ];
+
