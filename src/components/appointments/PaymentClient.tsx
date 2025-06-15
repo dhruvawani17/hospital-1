@@ -22,9 +22,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 const paymentFormSchema = z.object({
   cardNumber: z.string()
     .transform(val => val.replace(/\s/g, '')) // Remove spaces before validation
-    .min(16, "Card number must be 16 digits.")
-    .max(16, "Card number must be 16 digits.")
-    .regex(/^\d{16}$/, "Invalid card number format. Must be 16 digits."),
+    .pipe(z.string().regex(/^\d{16}$/, "Card number must be 16 digits.")), // Validate the transformed string
   expiryDate: z.string()
     .min(5, "Expiry date must be MM/YY.")
     .max(5, "Expiry date must be MM/YY.")
@@ -50,26 +48,26 @@ const formatExpiryDateInput = (value: string, previousValue: string = ""): strin
   const cleaned = value.replace(/\D/g, ''); // Remove non-digits
 
   if (cleaned.length === 0) return "";
-  if (cleaned.length === 1) return cleaned;
   
-  // If user is deleting the slash
-  if (value.length === 2 && previousValue.length === 3 && previousValue.endsWith('/')) {
-    return cleaned.slice(0,1);
+  // Handle deletion of slash or characters around it
+  if (value.length < previousValue.length) {
+    if (previousValue.length === 3 && previousValue.charAt(2) === '/' && value.length === 2) {
+      return cleaned.slice(0,2); // User deleted the slash, keep MM
+    }
+    // Allow normal deletion
+    return value.slice(0,5); // Keep it constrained
   }
 
-  if (cleaned.length >= 2) {
+  // Handle typing
+  if (cleaned.length === 1) return cleaned; // M
+  if (cleaned.length === 2) return cleaned + (previousValue.length < 2 ? "/" : ""); // MM or MM/ if they typed MM then slash
+  
+  if (cleaned.length > 2) {
     const month = cleaned.slice(0, 2);
     const year = cleaned.slice(2, 4);
-    if (year) {
-      return `${month}/${year}`;
-    }
-    // Add slash automatically if typing month and not already present
-    if (value.length === 2 && !value.includes('/') && previousValue.length < 2) {
-        return `${month}/`;
-    }
-    return `${month}${value.includes('/') || cleaned.length === 2 ? '' : '/'}`; // Keep slash if already typed or add if 2 digits are complete
+    return `${month}/${year}`;
   }
-  return cleaned;
+  return cleaned; // Fallback, should be covered by above
 };
 
 
@@ -134,7 +132,7 @@ export function PaymentClient() {
 
     const transactionId = `RCPT-${Date.now()}`;
     // Pass the transformed (raw) card number and correctly formatted expiry
-    const receiptData = confirmAppointment({ transactionId }); 
+    const receiptData = await confirmAppointment({ transactionId }); 
     
     setIsLoading(false);
     if (receiptData) {
@@ -217,8 +215,7 @@ export function PaymentClient() {
                             {...field}
                             onChange={(e) => {
                               const formatted = formatCardNumberInput(e.target.value);
-                              e.target.value = formatted; // Update input display
-                              field.onChange(formatted); // Update form state
+                              field.onChange(formatted); // Update form state with the formatted value
                             }}
                             maxLength={19} // 16 digits + 3 spaces
                           />
@@ -242,7 +239,6 @@ export function PaymentClient() {
                             onChange={(e) => {
                               const previousValue = field.value;
                               const formatted = formatExpiryDateInput(e.target.value, previousValue);
-                              e.target.value = formatted;
                               field.onChange(formatted);
                             }}
                             maxLength={5}
@@ -264,8 +260,7 @@ export function PaymentClient() {
                             {...field}
                             onChange={(e) => {
                                const cleaned = e.target.value.replace(/\D/g, '');
-                               e.target.value = cleaned;
-                               field.onChange(cleaned);
+                               field.onChange(cleaned.slice(0,3)); // Update form state with cleaned and truncated value
                             }}
                             maxLength={3}
                           />
