@@ -63,10 +63,9 @@ export function ReceiptClient() {
     toast({ title: "Preparing PDF...", description: "Please wait a moment." });
     try {
       const canvas = await html2canvas(receiptCardRef.current, {
-        scale: 2, // Increase scale for better quality
-        useCORS: true, // Important for external images if any
+        scale: 2, 
+        useCORS: true, 
         onclone: (document) => {
-          // Hide buttons in the cloned document for PDF
           const buttonsContainer = document.getElementById('receipt-actions');
           if (buttonsContainer) {
             buttonsContainer.style.display = 'none';
@@ -94,15 +93,27 @@ export function ReceiptClient() {
         await navigator.share({
           title: `${APP_NAME} Appointment Receipt`,
           text: `Receipt for ${receipt.serviceName} on ${format(new Date(receipt.date), 'PPP')} at ${receipt.time}. Transaction ID: ${receipt.transactionId}`,
-          url: window.location.href, // Shares the current receipt page URL
+          url: window.location.href,
         });
         toast({ title: "Shared!", description: "Receipt details shared successfully." });
       } catch (error) {
         console.error('Error sharing:', error);
-        toast({ variant: "destructive", title: "Share Failed", description: "Could not share the receipt." });
+        let shareErrorDescription = "Could not share the receipt. Please try again or copy the URL.";
+        if (error instanceof Error) {
+            if (error.name === 'NotAllowedError') {
+              shareErrorDescription = "Sharing permission was denied. This can happen if the page is not secure (HTTPS), due to browser settings, or if you denied a permission request.";
+            } else if (error.name === 'AbortError') {
+                shareErrorDescription = "Sharing was cancelled.";
+            }
+        }
+        toast({ variant: "destructive", title: "Share Failed", description: shareErrorDescription });
       }
     } else {
-      toast({ title: "Share Not Available", description: "Web Share API is not supported on your browser or device. You can try copying the URL." });
+      toast({ 
+        title: "Share Not Available", 
+        description: "Web Share API is not supported on your browser, device, or current page configuration. You can copy the URL instead.",
+        variant: "default"
+      });
     }
   };
 
