@@ -2,15 +2,19 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Send, Bot, User, Loader2 } from 'lucide-react';
-import { chatWithBot, type ChatInput } from '@/ai/flows/chatFlow';
+import { chatWithBot, type ChatInput, type ChatOutput } from '@/ai/flows/chatFlow'; // Import ChatOutput
 import { useToast } from '@/hooks/use-toast';
-import { APP_NAME } from '@/lib/constants';
+import { APP_NAME, SERVICES_DATA } from '@/lib/constants';
+import type { Service } from '@/types';
+import { useAppointment } from '@/contexts/AppointmentContext';
+
 
 interface Message {
   id: string;
@@ -26,9 +30,10 @@ export function ChatbotClient() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const router = useRouter();
+  const { startNewAppointment } = useAppointment();
 
   useEffect(() => {
-    // Scroll to bottom when messages change
     if (scrollAreaRef.current) {
       const scrollViewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (scrollViewport) {
@@ -38,12 +43,11 @@ export function ChatbotClient() {
   }, [messages]);
 
   useEffect(() => {
-    // Add initial greeting message from bot
     setMessages([
       {
         id: 'initial-greeting',
         sender: 'bot',
-        text: `Hello! I'm MediBuddy, your AI assistant for ${APP_NAME}. How can I help you today?`,
+        text: `Hello! I'm MediBuddy, your AI assistant for ${APP_NAME}. How can I help you today? You can ask me about our services or to help book an appointment.`,
         timestamp: new Date(),
       },
     ]);
@@ -71,15 +75,35 @@ export function ChatbotClient() {
 
     try {
       const input: ChatInput = { userInput: trimmedInput };
-      const response = await chatWithBot(input);
+      const response: ChatOutput = await chatWithBot(input); // Explicitly type response
       
+      const botResponseText = response.botResponse;
       const newBotMessage: Message = {
         id: `bot-${Date.now()}`,
         sender: 'bot',
-        text: response.botResponse,
+        text: botResponseText,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, newBotMessage]);
+
+      if (response.bookingInitiation) {
+        const { serviceId } = response.bookingInitiation;
+        const serviceToBook = SERVICES_DATA.find(s => s.id === serviceId);
+
+        if (serviceToBook) {
+          startNewAppointment(serviceToBook);
+          // The bot message already acknowledges redirection, so just navigate after a delay
+          setTimeout(() => {
+            router.push('/book-appointment');
+          }, 2000); // 2 seconds delay for user to read the message
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Booking Error",
+            description: `Could not find service with ID ${serviceId} to start booking.`,
+          });
+        }
+      }
     } catch (error) {
       console.error("Error calling chat bot:", error);
       toast({
@@ -136,10 +160,11 @@ export function ChatbotClient() {
                         : 'bg-muted text-muted-foreground'
                     }`}
                   >
-                    {msg.text.split('\\n').map((line, index) => (
+                    {/* Ensure text is split by actual newline characters if present, or display as is */}
+                    {msg.text.split('\n').map((line, index, arr) => (
                         <React.Fragment key={index}>
                         {line}
-                        {index < msg.text.split('\\n').length - 1 && <br />}
+                        {index < arr.length - 1 && <br />}
                         </React.Fragment>
                     ))}
                   </div>
