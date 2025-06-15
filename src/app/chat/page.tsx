@@ -2,6 +2,7 @@
 import { ChatbotClient } from "@/components/chatbot/ChatbotClient";
 import type { Metadata } from "next";
 import { APP_NAME } from "@/lib/constants";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 export const metadata: Metadata = {
   title: "Chat with MediBuddy",
@@ -9,5 +10,9 @@ export const metadata: Metadata = {
 };
 
 export default function ChatPage() {
-  return <ChatbotClient />;
+  return (
+    <ProtectedRoute>
+      <ChatbotClient />
+    </ProtectedRoute>
+  );
 }
