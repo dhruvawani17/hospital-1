@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -21,8 +22,10 @@ import { useAppointment } from '@/contexts/AppointmentContext';
 import type { AppointmentFormData, Service } from '@/types';
 import { SERVICES_DATA, DOCTOR_AVAILABILITY_STRING, MOCK_TIME_SLOTS } from '@/lib/constants';
 import { suggestAppointmentTimes, type SmartAppointmentSuggestionsInput, type SmartAppointmentSuggestionsOutput } from '@/ai/flows/smart-appointment-suggestions';
-import { CalendarIcon, Clock, Sparkles, User, Mail, Phone, Info, Loader2 } from 'lucide-react';
+import { CalendarIcon, Clock, Sparkles, User, Mail, Phone, Info, Loader2, BriefcaseMedical } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Label } from "@/components/ui/label";
+
 
 const appointmentFormSchema = z.object({
   serviceId: z.string().min(1, "Please select a service."),
@@ -350,3 +353,5 @@ export function BookAppointmentClient() {
     </div>
   );
 }
+
+    
