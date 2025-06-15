@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Appointment, AppointmentFormData, ReceiptData, Service } from "@/types";
@@ -76,7 +77,7 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       patientPhone: currentAppointment.patientPhone || '',
       status: 'confirmed',
       price: service.price,
-      patientPreferences: currentAppointment.patientPreferences
+      // patientPreferences: currentAppointment.patientPreferences // Removed
     };
 
     setConfirmedAppointments(prev => [...prev, newAppointment]);

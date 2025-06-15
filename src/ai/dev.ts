@@ -1,4 +1,5 @@
+
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/smart-appointment-suggestions.ts';
+import '@/ai/flows/chatFlow'; // Updated to import the new chat flow

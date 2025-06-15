@@ -4,32 +4,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { addDays, format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 import { useToast } from "@/hooks/use-toast";
 import { useAppointment } from '@/contexts/AppointmentContext';
 import type { AppointmentFormData, Service } from '@/types';
-import { SERVICES_DATA, DOCTOR_AVAILABILITY_STRING, MOCK_TIME_SLOTS } from '@/lib/constants';
-import { suggestAppointmentTimes, type SmartAppointmentSuggestionsInput, type SmartAppointmentSuggestionsOutput } from '@/ai/flows/smart-appointment-suggestions';
-import { CalendarIcon, Clock, Sparkles, User, Mail, Phone, Info, Loader2, BriefcaseMedical } from 'lucide-react';
+import { SERVICES_DATA, MOCK_TIME_SLOTS } from '@/lib/constants';
+import { CalendarIcon, Clock, User, Mail, Phone, Loader2, BriefcaseMedical } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Label } from "@/components/ui/label";
 
 
 const appointmentFormSchema = z.object({
   serviceId: z.string().min(1, "Please select a service."),
-  patientPreferences: z.string().optional(),
   date: z.date({ required_error: "Please select a date." }),
   time: z.string().min(1, "Please select a time slot."),
   patientName: z.string().min(2, "Name must be at least 2 characters."),
@@ -44,15 +40,12 @@ export function BookAppointmentClient() {
   const { toast } = useToast();
   const { currentAppointment, updateAppointmentData, startNewAppointment } = useAppointment();
   
-  const [aiSuggestions, setAiSuggestions] = useState<SmartAppointmentSuggestionsOutput | null>(null);
-  const [isLoadingAiSuggestions, setIsLoadingAiSuggestions] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(currentAppointment?.date ? new Date(currentAppointment.date) : undefined);
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
       serviceId: currentAppointment?.serviceId || "",
-      patientPreferences: currentAppointment?.patientPreferences || "",
       date: currentAppointment?.date ? new Date(currentAppointment.date) : undefined,
       time: currentAppointment?.time || "",
       patientName: currentAppointment?.patientName || "",
@@ -61,77 +54,12 @@ export function BookAppointmentClient() {
     },
   });
 
-  const selectedService = useMemo(() => 
-    SERVICES_DATA.find(s => s.id === form.watch("serviceId")),
-    [form.watch("serviceId")]
-  );
-
   useEffect(() => {
     if (currentAppointment?.serviceId && !form.getValues("serviceId")) {
       form.setValue("serviceId", currentAppointment.serviceId);
     }
   }, [currentAppointment, form]);
   
-  const handleAiSuggest = async () => {
-    const serviceId = form.getValues("serviceId");
-    const patientPreferences = form.getValues("patientPreferences");
-
-    if (!serviceId) {
-      toast({ variant: "destructive", title: "Select Service", description: "Please select a service before getting suggestions." });
-      return;
-    }
-    const service = SERVICES_DATA.find(s => s.id === serviceId);
-    if (!service) return;
-
-    setIsLoadingAiSuggestions(true);
-    setAiSuggestions(null);
-    try {
-      const input: SmartAppointmentSuggestionsInput = {
-        patientPreferences: patientPreferences || "No specific preferences.",
-        doctorAvailability: DOCTOR_AVAILABILITY_STRING,
-        appointmentType: service.name,
-        currentTime: new Date().toISOString(),
-      };
-      const suggestions = await suggestAppointmentTimes(input);
-      setAiSuggestions(suggestions);
-      if (suggestions.suggestedAppointmentTimes.length > 0) {
-        toast({ title: "AI Suggestions Ready", description: "Check the suggested times below." });
-      } else {
-        toast({ title: "AI Suggestions", description: "No specific times found, please choose manually or refine preferences." });
-      }
-    } catch (error) {
-      console.error("Error getting AI suggestions:", error);
-      toast({ variant: "destructive", title: "AI Error", description: "Could not fetch AI suggestions. Please try again or book manually." });
-    } finally {
-      setIsLoadingAiSuggestions(false);
-    }
-  };
-
-  const applyAiSuggestion = (suggestedTime: string) => {
-    // This is a simplified parsing. A robust solution would parse date and time from suggestedTime.
-    // For now, we assume suggestedTime is just a time string like "10:00 AM" and the date needs to be selected manually or set to a default.
-    // A more advanced AI could return date + time.
-    
-    // Try to parse date from suggestion if available (e.g. "2024-08-15 10:00 AM")
-    const dateTimeParts = suggestedTime.match(/(\d{4}-\d{2}-\d{2})\s*(.*)/);
-    if (dateTimeParts && dateTimeParts[1] && dateTimeParts[2]) {
-      const datePart = new Date(dateTimeParts[1] + 'T00:00:00'); // Ensure local timezone interpretation for date part
-      const timePart = dateTimeParts[2];
-      if (!isNaN(datePart.getTime())) {
-        form.setValue("date", datePart, { shouldValidate: true });
-        setSelectedDate(datePart);
-      }
-      form.setValue("time", timePart.trim(), { shouldValidate: true });
-    } else {
-      // If only time is suggested, or parsing fails, just set time. User must pick date.
-      form.setValue("time", suggestedTime, { shouldValidate: true });
-      if(!selectedDate){
-         toast({ title: "Date Required", description: "Please select a date for the suggested time.", variant: "destructive" });
-      }
-    }
-    toast({ title: "Suggestion Applied", description: `Time set to ${suggestedTime}. Please confirm or select a date.` });
-  };
-
 
   async function onSubmit(data: AppointmentFormValues) {
     updateAppointmentData(data);
@@ -166,7 +94,6 @@ export function BookAppointmentClient() {
                         field.onChange(value);
                         const service = SERVICES_DATA.find(s => s.id === value);
                         if (service) startNewAppointment(service); // Update context
-                        setAiSuggestions(null); // Reset AI suggestions when service changes
                       }} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder="Choose a medical service" /></SelectTrigger>
@@ -183,57 +110,6 @@ export function BookAppointmentClient() {
                   </FormItem>
                 )}
               />
-
-              {/* Patient Preferences & AI Suggestions */}
-              {selectedService && (
-                <Card className="bg-primary/5 border-primary/20">
-                  <CardHeader>
-                    <CardTitle className="text-xl font-headline flex items-center"><Sparkles className="mr-2 h-5 w-5 text-accent" />Smart Scheduler (AI Powered)</CardTitle>
-                    <CardDescription>Tell us your preferences, and our AI will suggest the best slots for your {selectedService.name}.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="patientPreferences"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Your Preferences (Optional)</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder="e.g., 'Morning preferred', 'Available after 5 PM on weekdays', 'Need a female doctor'" {...field} />
-                          </FormControl>
-                          <FormDescription>Any specific needs or times you prefer?</FormDescription>
-                        </FormItem>
-                      )}
-                    />
-                    <Button type="button" onClick={handleAiSuggest} disabled={isLoadingAiSuggestions} className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                      {isLoadingAiSuggestions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                      Get AI Suggestions
-                    </Button>
-                    {isLoadingAiSuggestions && <p className="text-sm text-muted-foreground">AI is thinking... Please wait.</p>}
-                    {aiSuggestions && (
-                      <div className="mt-4 space-y-3 p-4 border rounded-md bg-background">
-                        <h4 className="font-semibold text-md">AI Suggested Times:</h4>
-                        {aiSuggestions.suggestedAppointmentTimes.length > 0 ? (
-                          <RadioGroup
-                            onValueChange={applyAiSuggestion}
-                            className="grid grid-cols-2 md:grid-cols-3 gap-2"
-                          >
-                            {aiSuggestions.suggestedAppointmentTimes.slice(0,6).map((time, index) => ( // Show max 6 suggestions
-                              <FormItem key={index} className="flex items-center space-x-2">
-                                <RadioGroupItem value={time} id={`ai-time-${index}`} />
-                                <Label htmlFor={`ai-time-${index}`} className="font-normal cursor-pointer p-2 border rounded-md hover:bg-accent/10 w-full text-sm">{time}</Label>
-                              </FormItem>
-                            ))}
-                          </RadioGroup>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No specific times available based on your preferences. Try adjusting or select manually.</p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-2"><Info className="inline h-3 w-3 mr-1"/><strong>AI Reasoning:</strong> {aiSuggestions.reasoning}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
               
               {/* Date & Time Selection */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

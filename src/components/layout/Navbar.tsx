@@ -1,8 +1,9 @@
+
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BriefcaseMedical, CalendarDays, LogIn, LogOut, UserCircle, Menu } from "lucide-react";
+import { Home, BriefcaseMedical, CalendarDays, LogIn, LogOut, UserCircle, Menu, Bot } from "lucide-react"; // Added Bot
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { HealthFirstLogo } from "@/components/shared/icons";
@@ -15,6 +16,7 @@ const navLinks = [
   { href: "/", label: "Home", icon: Home },
   { href: "/services", label: "Services", icon: BriefcaseMedical },
   { href: "/book-appointment", label: "Book Appointment", icon: CalendarDays },
+  { href: "/chat", label: "Chatbot", icon: Bot }, // Added Chatbot link
 ];
 
 export function Navbar() {

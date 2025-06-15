@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { HealthFirstLogo } from '@/components/shared/icons';
 import { format } from 'date-fns';
-import { CheckCircle, Printer, Share2, Download, CalendarDays, Clock, User, BriefcaseMedical, DollarSign, Loader2 } from 'lucide-react';
+import { CheckCircle, Printer, Share2, Download, CalendarDays, Clock, User, BriefcaseMedical, DollarSign, Loader2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -216,15 +216,7 @@ export function ReceiptClient() {
                 </div>
               </div>
             )}
-            {receipt.patientPreferences && (
-               <div className="col-span-1 sm:col-span-2 flex items-start">
-                <User className="h-5 w-5 text-primary mr-3 mt-1 shrink-0 opacity-0" /> {/* Placeholder for alignment */}
-                <div>
-                  <span className="text-muted-foreground">Preferences:</span><br/>
-                  <strong className="text-base">{receipt.patientPreferences}</strong>
-                </div>
-              </div>
-            )}
+            
           </div>
           
           <div id="receipt-actions" className="mt-8 pt-6 border-t print:hidden">

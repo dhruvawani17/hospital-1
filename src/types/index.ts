@@ -18,7 +18,7 @@ export interface AppointmentFormData {
   patientName: string;
   patientEmail: string;
   patientPhone: string;
-  patientPreferences?: string;
+  // patientPreferences?: string; // Removed
 }
 
 export interface Appointment extends AppointmentFormData {
@@ -26,6 +26,7 @@ export interface Appointment extends AppointmentFormData {
   serviceName: string;
   status: 'pending' | 'confirmed' | 'cancelled';
   price: number;
+  // patientPreferences?: string; // Removed
 }
 
 export interface User {
@@ -38,6 +39,7 @@ export interface User {
 export interface ReceiptData extends Appointment {
   transactionId: string;
   paymentDate: Date;
+  // patientPreferences?: string; // Removed
 }
 
 export interface Doctor {
