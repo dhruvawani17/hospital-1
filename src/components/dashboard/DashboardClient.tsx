@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { CalendarDays, Clock, BriefcaseMedical, User, ListChecks, PlusCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
-import Image from 'next/image';
+import { CalendarDays, Clock, BriefcaseMedical, User, ListChecks, PlusCircle, XCircle, AlertTriangle, Loader2, Info } from 'lucide-react';
+// Removed Image import as it's no longer used for placeholder
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,7 +66,7 @@ export function DashboardClient() {
         return 'text-green-600 font-semibold';
       case 'cancelled':
         return 'text-red-600 font-semibold';
-      case 'pending': // Should not happen with current Firestore logic but good to keep
+      case 'pending': 
         return 'text-orange-500 font-semibold';
       default:
         return 'text-muted-foreground';
@@ -81,12 +81,12 @@ export function DashboardClient() {
       </div>
 
       <Card className="shadow-lg">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-2xl font-headline flex items-center"><ListChecks className="mr-3 h-7 w-7 text-primary" />Your Appointments</CardTitle>
             <CardDescription>View and manage your scheduled appointments.</CardDescription>
           </div>
-           <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
+           <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground w-full sm:w-auto">
             <Link href="/book-appointment">
               <PlusCircle className="mr-2 h-4 w-4" /> New Appointment
             </Link>
@@ -100,7 +100,8 @@ export function DashboardClient() {
             </div>
           ) : userAppointments.length === 0 ? (
             <div className="text-center py-12">
-              <Image src="https://placehold.co/300x200.png" alt="No appointments" width={300} height={200} className="mx-auto mb-6 rounded-lg" data-ai-hint="empty calendar"/>
+              {/* Removed placeholder image */}
+              <ListChecks className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">No Appointments Yet</h3>
               <p className="text-muted-foreground mb-6">You haven't scheduled any appointments. Book one today!</p>
             </div>
@@ -131,17 +132,18 @@ export function DashboardClient() {
                       <strong>Patient:</strong>&nbsp;{appt.patientName}
                     </div>
                     <div className="flex items-center">
-                       <span className="text-primary font-semibold">Receipt ID:</span>&nbsp;{appt.transactionId.substring(0,10)}...
+                       <Info className="h-5 w-5 text-muted-foreground mr-2" />
+                       <strong>Receipt ID:</strong>&nbsp;<span className="truncate">{appt.transactionId}</span>
                     </div>
                   </CardContent>
-                   <CardFooter className="flex justify-between items-center">
-                     <Button variant="outline" size="sm" asChild>
+                   <CardFooter className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+                     <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
                        <Link href={`/receipt?transactionId=${appt.transactionId}`}>View Receipt</Link>
                      </Button>
                      {appt.status === 'confirmed' && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
+                          <Button variant="destructive" size="sm" className="w-full sm:w-auto">
                             <XCircle className="mr-2 h-4 w-4" /> Cancel Appointment
                           </Button>
                         </AlertDialogTrigger>
