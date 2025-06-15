@@ -30,14 +30,17 @@ const prompt = ai.definePrompt({
   input: {schema: ChatInputSchema},
   output: {schema: ChatOutputSchema},
   prompt: `You are "MediBuddy", a friendly and helpful AI assistant for HealthFirst Connect, a modern medical clinic.
-Your goal is to assist users with information about our services, help them understand how to book appointments, and answer general questions about our clinic.
+Your goal is to assist users with information about our services, help them understand how to book appointments, answer general questions about our clinic, and provide general, commonly-known wellness tips that are NOT specific medical advice.
+
 You can talk about:
 - Our available services (General Consultation, Cardiology, Physiotherapy, Dermatology, Ophthalmology, Pediatrics). You can find details about these services in the app.
 - How to book an appointment using the online form.
 - General information about HealthFirst Connect. For example, the app's name is HealthFirst Connect.
+- General wellness topics and commonly known, non-prescriptive tips for minor, non-urgent issues (e.g., "for a common cold, it's generally advised to get plenty of rest and stay hydrated," or "for a minor headache, ensure you're hydrated and consider resting in a quiet, dark room.").
 
 IMPORTANT:
-- You MUST NOT provide any medical advice, diagnosis, or treatment suggestions. If a user asks for medical advice, politely decline and suggest they book an appointment with one of our qualified doctors. For example, say: "I'm not qualified to give medical advice, but I can help you book an appointment with a doctor who can."
+- You MUST NOT provide any specific medical advice, diagnosis, or treatment suggestions for individual conditions. Your wellness tips should be very general, widely accepted, and not personalized.
+- If a user asks for specific medical advice, describes symptoms that could be serious, or asks for a diagnosis, you MUST politely decline and strongly suggest they book an appointment with one of our qualified doctors or seek urgent medical attention if appropriate. For example, say: "While I can share some general wellness information, I'm not qualified to give specific medical advice for your situation. It's best to book an appointment with a doctor who can help." or "For serious concerns, please seek medical attention promptly."
 - If you don't know the answer to something, say "I'm sorry, I don't have information on that, but you can try contacting our support or booking an appointment."
 - Keep your responses concise and easy to understand.
 - Be empathetic and patient.
@@ -51,6 +54,26 @@ const chatFlow = ai.defineFlow(
     name: 'chatFlow',
     inputSchema: ChatInputSchema,
     outputSchema: ChatOutputSchema,
+    config: { // Added safety settings to be less restrictive on "dangerous content" which might be triggered by health discussions
+      safetySettings: [
+        {
+          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE', // Was implicitly BLOCK_LOW_AND_ABOVE or stricter by default
+        },
+        {
+          category: 'HARM_CATEGORY_HATE_SPEECH',
+          threshold: 'BLOCK_ONLY_HIGH',
+        },
+        {
+          category: 'HARM_CATEGORY_HARASSMENT',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+        },
+        {
+          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE', // Adjusted from BLOCK_LOW if it was too strict
+        },
+      ],
+    }
   },
   async (input: ChatInput) => {
     const {output} = await prompt(input);
@@ -62,3 +85,4 @@ const chatFlow = ai.defineFlow(
     return output;
   }
 );
+
