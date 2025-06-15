@@ -1,11 +1,18 @@
+
 "use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { HealthFirstLogo } from "@/components/shared/icons";
 import { APP_NAME } from "@/lib/constants";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail, Lock } from "lucide-react";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" {...props}>
@@ -17,8 +24,30 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+const loginFormSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+});
+
+type LoginFormValues = z.infer<typeof loginFormSchema>;
+
 export function LoginClient() {
   const { login, loading } = useAuth();
+
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  // Handles manual form submission
+  function onManualSubmit(data: LoginFormValues) {
+    // In a real app, you'd authenticate with these credentials
+    console.log("Manual login attempt with:", data.email);
+    login(); // Using the same mock login for now
+  }
 
   return (
     <div className="container flex min-h-[calc(100vh-10rem)] items-center justify-center py-12">
@@ -30,15 +59,65 @@ export function LoginClient() {
           <CardTitle className="text-3xl font-headline">{APP_NAME}</CardTitle>
           <CardDescription>Sign in to access your dashboard and manage appointments.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onManualSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center">
+                      <Mail className="mr-2 h-4 w-4 text-muted-foreground" /> Email
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="you@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center">
+                      <Lock className="mr-2 h-4 w-4 text-muted-foreground" /> Password
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading && form.formState.isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+                Sign In
+              </Button>
+            </form>
+          </Form>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or continue with
+              </span>
+            </div>
+          </div>
+
           <Button
             variant="outline"
             className="w-full text-base py-6"
-            onClick={login}
+            onClick={login} // Google login still uses the same login function
             disabled={loading}
             aria-disabled={loading}
           >
-            {loading ? (
+            {loading && !form.formState.isSubmitting ? ( // Show loader only if this button caused it
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             ) : (
               <GoogleIcon className="mr-3 h-5 w-5" />
@@ -48,10 +127,12 @@ export function LoginClient() {
         </CardContent>
         <CardFooter className="text-center">
           <p className="text-xs text-muted-foreground">
-            This is a simulated login. No actual Google Sign-In will occur.
+            This is a simulated login. No actual Google Sign-In or email/password authentication will occur.
           </p>
         </CardFooter>
       </Card>
     </div>
   );
 }
+
+    
