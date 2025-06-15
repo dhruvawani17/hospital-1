@@ -1,18 +1,20 @@
+
 // src/lib/firebase.ts
 import { initializeApp, getApp, getApps, type FirebaseOptions } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getAnalytics, isSupported } from "firebase/analytics";
 
-// IMPORTANT: Replace with your Firebase project's configuration
-// You can find this in your Firebase project settings.
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig: FirebaseOptions = {
-  apiKey: "YOUR_API_KEY", // Replace with your API key
-  authDomain: "YOUR_AUTH_DOMAIN", // Replace with your auth domain
-  projectId: "YOUR_PROJECT_ID", // Replace with your project ID
-  storageBucket: "YOUR_STORAGE_BUCKET", // Replace with your storage bucket
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // Replace with your messaging sender ID
-  appId: "YOUR_APP_ID", // Replace with your app ID
-  measurementId: "YOUR_MEASUREMENT_ID" // Optional: Replace with your measurement ID
+  apiKey: "AIzaSyCNzZWIa7leeX1xl_SU7m5vW_DuTPisT9Y",
+  authDomain: "hospital-8e8d1.firebaseapp.com",
+  projectId: "hospital-8e8d1",
+  storageBucket: "hospital-8e8d1.firebasestorage.app", // Corrected from firebasestorage.app
+  messagingSenderId: "580040490595",
+  appId: "1:580040490595:web:2a1f4d96a22dc0eb904256",
+  measurementId: "G-E3CDZTJW5J"
 };
 
 // Initialize Firebase
@@ -26,4 +28,14 @@ if (!getApps().length) {
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-export { app, auth, db };
+// Initialize Analytics only if supported (runs only in browser environment)
+let analytics;
+if (typeof window !== 'undefined') {
+  isSupported().then((supported) => {
+    if (supported) {
+      analytics = getAnalytics(app);
+    }
+  });
+}
+
+export { app, auth, db, analytics };
