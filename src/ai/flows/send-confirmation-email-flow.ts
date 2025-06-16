@@ -91,7 +91,7 @@ const sendConfirmationEmailFlow = ai.defineFlow(
 
     const msg = {
       to: input.toEmail,
-      from: fromEmail,
+      from: fromEmail, // This should be your verified sender email from .env
       subject: `Your Appointment Confirmation with ${APP_NAME} - #${input.transactionId}`,
       html: emailHtmlBody,
     };
@@ -110,7 +110,7 @@ const sendConfirmationEmailFlow = ai.defineFlow(
       
       return {
         success: true,
-        message: `Appointment confirmation email successfully sent to ${input.toEmail}.`,
+        message: `Appointment confirmation email successfully sent to ${input.toEmail}. SendGrid status: ${clientResponse.statusCode}`,
         messageId: messageId
       };
     } catch (error: any) {
@@ -127,8 +127,10 @@ const sendConfirmationEmailFlow = ai.defineFlow(
         console.error('[sendConfirmationEmailFlow] SendGrid API Error Body (parsed):', JSON.stringify(error.response.body.errors));
         errorMessage = error.response.body.errors.map((e: any) => e.message).join(', ');
       } else if (error.response && error.response.body) {
+        // Log the raw body if it's not the expected errors array
         console.error('[sendConfirmationEmailFlow] SendGrid API Error Body (raw):', JSON.stringify(error.response.body));
       }
+      // Stringify the whole error object to catch other potential properties
       console.error('[sendConfirmationEmailFlow] Full SendGrid Error Object (stringified):', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       
       return {
