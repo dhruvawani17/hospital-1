@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A Genkit flow for sending appointment confirmation emails using SendGrid.
@@ -13,7 +12,7 @@ import {z} from 'genkit';
 import sgMail from '@sendgrid/mail';
 import { APP_NAME } from '@/lib/constants';
 
-export const SendConfirmationEmailInputSchema = z.object({
+const SendConfirmationEmailInputSchema = z.object({
   toEmail: z.string().email().describe("The recipient's email address."),
   patientName: z.string().describe("The name of the patient."),
   serviceName: z.string().describe("The name of the booked service."),
@@ -25,7 +24,7 @@ export const SendConfirmationEmailInputSchema = z.object({
 });
 export type SendConfirmationEmailInput = z.infer<typeof SendConfirmationEmailInputSchema>;
 
-export const SendConfirmationEmailOutputSchema = z.object({
+const SendConfirmationEmailOutputSchema = z.object({
   success: z.boolean().describe("Indicates whether the email sending process was successful."),
   message: z.string().describe("A message describing the outcome of the email sending process."),
 });
