@@ -181,9 +181,9 @@ export function PaymentClient() {
 
         <Card className="shadow-xl">
           <CardHeader>
-            <CardTitle className="text-2xl font-headline text-center">Simulated Payment</CardTitle>
+            <CardTitle className="text-2xl font-headline text-center">Payment</CardTitle>
             <CardDescription className="text-center">
-              Enter your card details to confirm your appointment. This is a simulation, no real transaction will occur.
+              Enter your card details to confirm your appointment.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -270,13 +270,7 @@ export function PaymentClient() {
                     )}
                   />
                 </div>
-                <Alert variant="default" className="bg-primary/10 border-primary/20">
-                  <AlertCircle className="h-4 w-4 text-primary" />
-                  <AlertTitle className="text-primary">Simulation Notice</AlertTitle>
-                  <AlertDescription>
-                    This is a payment simulation. Any card details will work (e.g., 16 zeros for card number). No real charges will be made.
-                  </AlertDescription>
-                </Alert>
+                
                 <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DollarSign className="mr-2 h-4 w-4" /> }
                   Pay ₹{serviceDetails.price.toFixed(2)} & Confirm
