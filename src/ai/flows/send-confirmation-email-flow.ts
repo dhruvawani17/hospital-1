@@ -4,7 +4,7 @@
  * @fileOverview A Genkit flow for sending appointment confirmation emails using SendGrid.
  *
  * - sendConfirmationEmail - A function that processes the email sending request.
- * - SendConfirmationEmailInput - The input type for the sendConfirmationEmail function (not exported).
+ * - SendConfirmationEmailInput - The input type for the sendConfirmationEmail function.
  * - SendConfirmationEmailOutput - The return type for the sendConfirmationEmail function.
  */
 import {ai} from '@/ai/genkit';
@@ -27,6 +27,7 @@ export type SendConfirmationEmailInput = z.infer<typeof SendConfirmationEmailInp
 const SendConfirmationEmailOutputSchema = z.object({
   success: z.boolean().describe("Indicates whether the email sending process was successful."),
   message: z.string().describe("A message describing the outcome of the email sending process."),
+  messageId: z.string().optional().describe("The SendGrid message ID if the email was accepted."),
 });
 export type SendConfirmationEmailOutput = z.infer<typeof SendConfirmationEmailOutputSchema>;
 
@@ -90,23 +91,30 @@ const sendConfirmationEmailFlow = ai.defineFlow(
 
     const msg = {
       to: input.toEmail,
-      from: fromEmail, // This must be a SendGrid verified sender
+      from: fromEmail,
       subject: `Your Appointment Confirmation with ${APP_NAME} - #${input.transactionId}`,
       html: emailHtmlBody,
     };
 
     try {
       console.log(`[sendConfirmationEmailFlow] Preparing to send email via SendGrid. To: ${input.toEmail}, From: ${fromEmail}, Subject: ${msg.subject}`);
-      const response = await sgMail.send(msg);
-      console.log('[sendConfirmationEmailFlow] Email sent successfully via SendGrid. Response status code:', response[0].statusCode);
-      console.log('[sendConfirmationEmailFlow] SendGrid Response Headers:', JSON.stringify(response[0].headers));
+      const response = await sgMail.send(msg); // response is an array: [ClientResponse, {}]
+      const clientResponse = response[0];
+      const messageId = clientResponse.headers['x-message-id'];
+
+      console.log('[sendConfirmationEmailFlow] Email sent successfully via SendGrid. Status code:', clientResponse.statusCode);
+      console.log('[sendConfirmationEmailFlow] SendGrid Response Headers:', JSON.stringify(clientResponse.headers));
+      if (messageId) {
+        console.log('[sendConfirmationEmailFlow] SendGrid X-Message-Id:', messageId);
+      }
+      
       return {
         success: true,
-        message: `Appointment confirmation email successfully sent to ${input.toEmail}.`
+        message: `Appointment confirmation email successfully sent to ${input.toEmail}.`,
+        messageId: messageId
       };
     } catch (error: any) {
       console.error('[sendConfirmationEmailFlow] Error sending email with SendGrid. Raw error object:', error);
-      // Log more detailed error information
       let errorMessage = 'Unknown SendGrid error';
       if (error.message) {
         errorMessage = error.message;
