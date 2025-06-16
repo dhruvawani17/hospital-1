@@ -1,5 +1,4 @@
 
-
 import type { Service } from '@/types';
 import { Stethoscope, HeartPulse, Activity, ShieldCheck, Eye, Baby, Award, BriefcaseMedical as BriefcaseIcon } from 'lucide-react'; // Renamed to avoid conflict
 
@@ -87,7 +86,7 @@ export const DOCTORS_DATA: Doctor[] = [
     specialty: 'General Physician',
     qualifications: 'MD, FACP',
     experience: '12+ years of practice',
-    image: 'https://placehold.co/400x400.png',
+    image: '/doctors/dr-emily-carter.png', // Updated path
     dataAiHint: 'doctor portrait',
     specialtyIcon: Stethoscope,
   },
@@ -97,7 +96,7 @@ export const DOCTORS_DATA: Doctor[] = [
     specialty: 'Cardiologist',
     qualifications: 'MD, FACC, PhD',
     experience: '15+ years in heart care',
-    image: 'https://placehold.co/400x400.png',
+    image: '/doctors/dr-benjamin-lee.png', // Updated path
     dataAiHint: 'doctor portrait',
     specialtyIcon: HeartPulse,
   },
@@ -107,7 +106,7 @@ export const DOCTORS_DATA: Doctor[] = [
     specialty: 'Pediatrician',
     qualifications: 'MD, FAAP',
     experience: '8+ years with children',
-    image: 'https://placehold.co/400x400.png',
+    image: '/doctors/dr-olivia-davis.png', // Updated path
     dataAiHint: 'doctor portrait',
     specialtyIcon: Baby,
   },
@@ -117,7 +116,7 @@ export const DOCTORS_DATA: Doctor[] = [
     specialty: 'Dermatologist',
     qualifications: 'MD, FAAD',
     experience: '10+ years in skin health',
-    image: 'https://placehold.co/400x400.png',
+    image: '/doctors/dr-marcus-chen.png', // Updated path
     dataAiHint: 'doctor portrait',
     specialtyIcon: ShieldCheck,
   },
@@ -127,9 +126,9 @@ export const DOCTORS_DATA: Doctor[] = [
     specialty: 'Orthopedic Surgeon',
     qualifications: 'MD, FRCS',
     experience: '7+ years in orthopedics',
-    image: 'https://placehold.co/400x400.png',
+    image: '/doctors/dr-sophia-miller.png', // Updated path
     dataAiHint: 'doctor portrait',
-    specialtyIcon: Activity, // Using Activity as a proxy for orthopedics/movement
+    specialtyIcon: Activity, 
   },
   {
     id: 'dr-david-wilson',
@@ -137,9 +136,7 @@ export const DOCTORS_DATA: Doctor[] = [
     specialty: 'Neurologist',
     qualifications: 'MD, PhD, FAAN',
     experience: '18+ years in neurological care',
-    image: 'https://placehold.co/400x400.png',
-    dataAiHint: 'neurologist portrait', // Made hint more specific
-    // No direct icon for neurologist, can omit or use a generic one if needed
+    image: '/doctors/dr-david-wilson.png', // Updated path
+    dataAiHint: 'neurologist portrait', 
   },
 ];
-
