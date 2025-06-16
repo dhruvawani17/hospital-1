@@ -1,9 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow for sending appointment confirmation emails.
- * This flow is currently a simulation and logs email details to the console.
- * It's designed to be called by a Firebase Function triggered by a Firestore event.
+ * @fileOverview A Genkit flow for sending appointment confirmation emails using SendGrid.
  *
  * - sendConfirmationEmail - A function that processes the email sending request.
  * - SendConfirmationEmailInput - The input type for the sendConfirmationEmail function.
@@ -12,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import sgMail from '@sendgrid/mail';
 import { APP_NAME } from '@/lib/constants';
 
 export const SendConfirmationEmailInputSchema = z.object({
@@ -27,7 +26,7 @@ export const SendConfirmationEmailInputSchema = z.object({
 export type SendConfirmationEmailInput = z.infer<typeof SendConfirmationEmailInputSchema>;
 
 export const SendConfirmationEmailOutputSchema = z.object({
-  success: z.boolean().describe("Indicates whether the email sending process was initiated successfully (simulated)."),
+  success: z.boolean().describe("Indicates whether the email sending process was successful."),
   message: z.string().describe("A message describing the outcome of the email sending process."),
 });
 export type SendConfirmationEmailOutput = z.infer<typeof SendConfirmationEmailOutputSchema>;
@@ -43,30 +42,64 @@ const sendConfirmationEmailFlow = ai.defineFlow(
     outputSchema: SendConfirmationEmailOutputSchema,
   },
   async (input: SendConfirmationEmailInput): Promise<SendConfirmationEmailOutput> => {
-    console.log(`[sendConfirmationEmailFlow] Simulating sending email to: ${input.toEmail}`);
-    console.log("[sendConfirmationEmailFlow] Email Details:");
-    console.log(`  Patient Name: ${input.patientName}`);
-    console.log(`  Service: ${input.serviceName}`);
-    console.log(`  Date: ${input.appointmentDate}`);
-    console.log(`  Time: ${input.appointmentTime}`);
-    console.log(`  Transaction ID: ${input.transactionId}`);
-    console.log(`  Price: ₹${input.price.toFixed(2)}`);
-    console.log(`  Receipt URL: ${input.receiptUrl}`);
-    console.log(`  App Name: ${APP_NAME}`);
+    const apiKey = process.env.SENDGRID_API_KEY;
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
 
-    // In a real implementation, you would integrate with an email service SDK here.
-    // For example, using SendGrid, Mailgun, etc.
-    // This would involve:
-    // 1. Configuring the email service provider with API keys (securely).
-    // 2. Constructing the email body (HTML or text).
-    // 3. Sending the email using the provider's SDK.
+    if (!apiKey) {
+      console.error("SENDGRID_API_KEY not found in environment variables.");
+      return { success: false, message: "SendGrid API Key not configured. Email not sent." };
+    }
+    if (!fromEmail) {
+      console.error("SENDGRID_FROM_EMAIL not found in environment variables.");
+      return { success: false, message: "SendGrid From Email not configured. Email not sent." };
+    }
 
-    const simulatedMessage = `Simulated: Appointment confirmation email for ${input.serviceName} would be sent to ${input.toEmail}.`;
-    
-    // For demonstration, return success
-    return {
-      success: true,
-      message: simulatedMessage,
+    sgMail.setApiKey(apiKey);
+
+    const emailHtmlBody = `
+      <html>
+        <body>
+          <p>Dear ${input.patientName},</p>
+          <p>Thank you for booking your appointment with ${APP_NAME}.</p>
+          <p><strong>Appointment Details:</strong></p>
+          <ul>
+            <li><strong>Service:</strong> ${input.serviceName}</li>
+            <li><strong>Date:</strong> ${input.appointmentDate}</li>
+            <li><strong>Time:</strong> ${input.appointmentTime}</li>
+            <li><strong>Price:</strong> ₹${input.price.toFixed(2)}</li>
+            <li><strong>Transaction ID:</strong> ${input.transactionId}</li>
+          </ul>
+          <p>You can view your full receipt here: <a href="${input.receiptUrl}">${input.receiptUrl}</a></p>
+          <p>We look forward to seeing you!</p>
+          <p>Sincerely,<br/>The ${APP_NAME} Team</p>
+        </body>
+      </html>
+    `;
+
+    const msg = {
+      to: input.toEmail,
+      from: fromEmail, // Use the verified sender email from environment variables
+      subject: `Your Appointment Confirmation with ${APP_NAME} - #${input.transactionId}`,
+      html: emailHtmlBody,
     };
+
+    try {
+      console.log(`[sendConfirmationEmailFlow] Attempting to send email to: ${input.toEmail} from: ${fromEmail}`);
+      await sgMail.send(msg);
+      console.log('[sendConfirmationEmailFlow] Email sent successfully via SendGrid.');
+      return { 
+        success: true, 
+        message: `Appointment confirmation email successfully sent to ${input.toEmail}.` 
+      };
+    } catch (error: any) {
+      console.error('[sendConfirmationEmailFlow] Error sending email with SendGrid:', error);
+      if (error.response) {
+        console.error('[sendConfirmationEmailFlow] SendGrid Error Body:', error.response.body);
+      }
+      return { 
+        success: false, 
+        message: `Failed to send confirmation email. Error: ${error.message || 'Unknown SendGrid error'}` 
+      };
+    }
   }
 );
