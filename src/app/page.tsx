@@ -108,13 +108,13 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {DOCTORS_DATA.map((doctor, index) => (
               <Card key={doctor.id} className="overflow-hidden animate-slide-in-up flex flex-col hover:shadow-xl transition-shadow duration-300 ease-in-out" style={{animationDelay: `${0.15 * (index + 1)}s`}}>
-                <div className="relative w-full h-64 sm:h-72">
+                <div className="relative w-full h-80 sm:h-96">
                   <Image
                     src={doctor.image}
                     alt={doctor.name}
                     fill
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="object-cover object-top"
+                    className="object-contain"
                     data-ai-hint={doctor.dataAiHint || "doctor portrait"}
                   />
                 </div>

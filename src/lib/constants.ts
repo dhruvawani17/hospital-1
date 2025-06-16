@@ -86,7 +86,7 @@ export const DOCTORS_DATA: Doctor[] = [
     specialty: 'General Physician',
     qualifications: 'MD, FACP',
     experience: '12+ years of practice',
-    image: '/doctors/dr-emily-carter.png', // Updated path
+    image: '/doctors/doctor1.png', // Updated path
     dataAiHint: 'doctor portrait',
     specialtyIcon: Stethoscope,
   },
@@ -96,7 +96,7 @@ export const DOCTORS_DATA: Doctor[] = [
     specialty: 'Cardiologist',
     qualifications: 'MD, FACC, PhD',
     experience: '15+ years in heart care',
-    image: '/doctors/dr-benjamin-lee.png', // Updated path
+    image: '/doctors/doctor2.png', // Updated path
     dataAiHint: 'doctor portrait',
     specialtyIcon: HeartPulse,
   },
@@ -106,7 +106,7 @@ export const DOCTORS_DATA: Doctor[] = [
     specialty: 'Pediatrician',
     qualifications: 'MD, FAAP',
     experience: '8+ years with children',
-    image: '/doctors/dr-olivia-davis.png', // Updated path
+    image: '/doctors/doctor3.png', // Updated path
     dataAiHint: 'doctor portrait',
     specialtyIcon: Baby,
   },
@@ -116,7 +116,7 @@ export const DOCTORS_DATA: Doctor[] = [
     specialty: 'Dermatologist',
     qualifications: 'MD, FAAD',
     experience: '10+ years in skin health',
-    image: '/doctors/dr-marcus-chen.png', // Updated path
+    image: '/doctors/doctor4.png', // Updated path
     dataAiHint: 'doctor portrait',
     specialtyIcon: ShieldCheck,
   },
@@ -126,7 +126,7 @@ export const DOCTORS_DATA: Doctor[] = [
     specialty: 'Orthopedic Surgeon',
     qualifications: 'MD, FRCS',
     experience: '7+ years in orthopedics',
-    image: '/doctors/dr-sophia-miller.png', // Updated path
+    image: '/doctors/doctor5.png', // Updated path
     dataAiHint: 'doctor portrait',
     specialtyIcon: Activity, 
   },
@@ -136,7 +136,7 @@ export const DOCTORS_DATA: Doctor[] = [
     specialty: 'Neurologist',
     qualifications: 'MD, PhD, FAAN',
     experience: '18+ years in neurological care',
-    image: '/doctors/dr-david-wilson.png', // Updated path
+    image: '/doctors/doctor6.png', // Updated path
     dataAiHint: 'neurologist portrait', 
   },
 ];
