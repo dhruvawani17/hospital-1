@@ -18,8 +18,8 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 import { useAuth } from "./AuthContext";
-import { useToast } from "@/hooks/use-toast"; 
-import { sendConfirmationEmail, type SendConfirmationEmailInput } from "@/ai/flows/send-confirmation-email-flow";
+import { useToast } from "@/hooks/use-toast";
+import { sendConfirmationEmail, type SendConfirmationEmailInput, type SendConfirmationEmailOutput } from "@/ai/flows/send-confirmation-email-flow";
 
 
 interface AppointmentContextType {
@@ -36,31 +36,25 @@ interface AppointmentContextType {
 
 const AppointmentContext = createContext<AppointmentContextType | undefined>(undefined);
 
-// This local simulation function is no longer primary, 
-// but kept for reference or if direct client-side flow call is desired for some reason.
-// The main email logic is now in the Genkit flow, typically called by a backend Firebase Function.
 async function triggerEmailFlow(receipt: ReceiptData, toast: ReturnType<typeof useToast>['toast']): Promise<void> {
-  console.log(`[AppointmentContext] Preparing to call sendConfirmationEmail Genkit flow for: ${receipt.patientEmail}`);
-  
+  console.log(`[AppointmentContext/triggerEmailFlow] Preparing to call sendConfirmationEmail Genkit flow for: ${receipt.patientEmail}`);
+
   const emailInput: SendConfirmationEmailInput = {
     toEmail: receipt.patientEmail,
     patientName: receipt.patientName,
     serviceName: receipt.serviceName,
-    // Ensure date is formatted as YYYY-MM-DD string for the flow
-    appointmentDate: receipt.date.toISOString().split('T')[0], 
+    appointmentDate: receipt.date.toISOString().split('T')[0],
     appointmentTime: receipt.time,
     transactionId: receipt.transactionId,
     price: receipt.price,
-    receiptUrl: `${window.location.origin}/receipt?transactionId=${receipt.transactionId}`, // Construct full URL
+    receiptUrl: `${window.location.origin}/receipt?transactionId=${receipt.transactionId}`,
   };
 
   try {
-    // IMPORTANT: In a production scenario, this Genkit flow would typically be invoked
-    // by a Firebase Function that is triggered by the Firestore document creation,
-    // not directly from the client-side context.
-    // For local development and testing the flow's logic (if .env has keys), this can work.
-    const emailResult = await sendConfirmationEmail(emailInput);
-    
+    console.log('[AppointmentContext/triggerEmailFlow] Calling sendConfirmationEmail flow with input:', JSON.stringify(emailInput));
+    const emailResult: SendConfirmationEmailOutput = await sendConfirmationEmail(emailInput);
+    console.log('[AppointmentContext/triggerEmailFlow] Result from sendConfirmationEmail flow:', JSON.stringify(emailResult));
+
     if (emailResult.success) {
       toast({
         title: "Email Processed",
@@ -74,7 +68,7 @@ async function triggerEmailFlow(receipt: ReceiptData, toast: ReturnType<typeof u
       });
     }
   } catch (error: any) {
-    console.error("[AppointmentContext] Error calling sendConfirmationEmail flow:", error);
+    console.error("[AppointmentContext/triggerEmailFlow] Error calling sendConfirmationEmail flow:", error);
     toast({
       variant: "destructive",
       title: "Email Flow Error",
@@ -109,15 +103,15 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
           id: docSnap.id,
           ...data,
           date: (data.date as Timestamp).toDate(),
-          createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(), 
+          createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(),
         } as Appointment);
       });
       console.log("[AppointmentContext] Fetched appointments array:", appointments);
       setConfirmedAppointments(appointments);
     } catch (error) {
       console.error("[AppointmentContext] Error fetching appointments from Firestore:", error);
-      setConfirmedAppointments([]); 
-      toast({ 
+      setConfirmedAppointments([]);
+      toast({
         variant: "destructive",
         title: "Error Loading Appointments",
         description: "Could not load your appointments. Please try again later.",
@@ -126,7 +120,7 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setIsLoadingAppointments(false);
       console.log("[AppointmentContext] fetchAppointments finished. isLoadingAppointments:", false);
     }
-  }, [toast]); 
+  }, [toast]);
 
   useEffect(() => {
     console.log("[AppointmentContext] useEffect for user changed. User:", user);
@@ -134,7 +128,7 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       fetchAppointments(user.uid);
     } else {
       setConfirmedAppointments([]);
-      setIsLoadingAppointments(false); 
+      setIsLoadingAppointments(false);
       console.log("[AppointmentContext] No user or user.uid, cleared appointments. isLoadingAppointments:", false);
     }
   }, [user, fetchAppointments]);
@@ -189,13 +183,13 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.log("[AppointmentContext] Attempting to add document to Firestore:", newAppointmentDataToSave);
       const docRef = await addDoc(collection(db, "appointments"), newAppointmentDataToSave);
       console.log("[AppointmentContext] Document added with ID:", docRef.id);
-      
+
       const receiptData: ReceiptData = {
         id: docRef.id,
         userId: user.uid,
         serviceId: newAppointmentDataToSave.serviceId,
         serviceName: newAppointmentDataToSave.serviceName,
-        date: new Date(currentAppointment.date), 
+        date: new Date(currentAppointment.date),
         time: newAppointmentDataToSave.time,
         patientName: newAppointmentDataToSave.patientName,
         patientEmail: newAppointmentDataToSave.patientEmail,
@@ -203,16 +197,12 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
         status: newAppointmentDataToSave.status,
         price: newAppointmentDataToSave.price,
         transactionId: newAppointmentDataToSave.transactionId,
-        createdAt: new Date(), 
-        paymentDate: new Date(newAppointmentDataToSave.paymentDate.toDate()), 
+        createdAt: new Date(),
+        paymentDate: new Date(newAppointmentDataToSave.paymentDate.toDate()),
       };
-      
-      await fetchAppointments(user.uid); 
-      // Call the function to trigger the email flow.
-      // As noted above, this direct client-side call is for local testing/demonstration.
-      // Production: A Firebase Function would listen to Firestore 'create' events on 'appointments'
-      // and then call the sendConfirmationEmail Genkit flow.
-      await triggerEmailFlow(receiptData, toast); 
+
+      await fetchAppointments(user.uid);
+      await triggerEmailFlow(receiptData, toast);
 
       return receiptData;
     } catch (error) {
@@ -236,7 +226,7 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
       return null;
     }
-    
+
     try {
       console.log(`[AppointmentContext] getAppointmentByTransactionId called for transactionId: ${transactionId}, userId: ${user.uid}`);
       const q = query(
@@ -257,8 +247,8 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
         } as Appointment;
       }
       console.log("[AppointmentContext] No appointment found for transactionId:", transactionId, "and userId:", user.uid);
-      toast({ 
-        variant: "default", // Changed from destructive to default as it's a "not found" rather than system error
+      toast({
+        variant: "default",
         title: "Receipt Not Found",
         description: "Could not find a receipt with that ID associated with your account.",
       });

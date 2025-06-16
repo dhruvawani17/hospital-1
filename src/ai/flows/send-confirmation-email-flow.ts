@@ -1,17 +1,16 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow for sending appointment confirmation emails using SendGrid.
  *
  * - sendConfirmationEmail - A function that processes the email sending request.
- * - SendConfirmationEmailInput - The input type for the sendConfirmationEmail function.
- * - SendConfirmationEmailOutput - The return type for the sendConfirmationEmail function.
  */
-
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import sgMail from '@sendgrid/mail';
 import { APP_NAME } from '@/lib/constants';
 
+// Input and Output types are not exported due to 'use server' constraints
 const SendConfirmationEmailInputSchema = z.object({
   toEmail: z.string().email().describe("The recipient's email address."),
   patientName: z.string().describe("The name of the patient."),
@@ -41,16 +40,23 @@ const sendConfirmationEmailFlow = ai.defineFlow(
     outputSchema: SendConfirmationEmailOutputSchema,
   },
   async (input: SendConfirmationEmailInput): Promise<SendConfirmationEmailOutput> => {
+    console.log('[sendConfirmationEmailFlow] Initiated with input:', JSON.stringify(input));
+
     const apiKey = process.env.SENDGRID_API_KEY;
     const fromEmail = process.env.SENDGRID_FROM_EMAIL;
 
     if (!apiKey) {
-      console.error("SENDGRID_API_KEY not found in environment variables.");
-      return { success: false, message: "SendGrid API Key not configured. Email not sent." };
+      console.error("[sendConfirmationEmailFlow] SENDGRID_API_KEY not found in environment variables.");
+      return { success: false, message: "Configuration error: SendGrid API Key not found. Email not sent." };
+    } else {
+      console.log("[sendConfirmationEmailFlow] SENDGRID_API_KEY found.");
     }
+
     if (!fromEmail) {
-      console.error("SENDGRID_FROM_EMAIL not found in environment variables.");
-      return { success: false, message: "SendGrid From Email not configured. Email not sent." };
+      console.error("[sendConfirmationEmailFlow] SENDGRID_FROM_EMAIL not found in environment variables.");
+      return { success: false, message: "Configuration error: SendGrid From Email not found. Email not sent." };
+    } else {
+      console.log("[sendConfirmationEmailFlow] SENDGRID_FROM_EMAIL found:", fromEmail);
     }
 
     sgMail.setApiKey(apiKey);
@@ -77,27 +83,27 @@ const sendConfirmationEmailFlow = ai.defineFlow(
 
     const msg = {
       to: input.toEmail,
-      from: fromEmail, // Use the verified sender email from environment variables
+      from: fromEmail,
       subject: `Your Appointment Confirmation with ${APP_NAME} - #${input.transactionId}`,
       html: emailHtmlBody,
     };
 
     try {
-      console.log(`[sendConfirmationEmailFlow] Attempting to send email to: ${input.toEmail} from: ${fromEmail}`);
-      await sgMail.send(msg);
-      console.log('[sendConfirmationEmailFlow] Email sent successfully via SendGrid.');
-      return { 
-        success: true, 
-        message: `Appointment confirmation email successfully sent to ${input.toEmail}.` 
+      console.log(`[sendConfirmationEmailFlow] Attempting to send email via SendGrid to: ${input.toEmail} from: ${fromEmail}`);
+      const response = await sgMail.send(msg);
+      console.log('[sendConfirmationEmailFlow] Email sent successfully via SendGrid. Response status code:', response[0].statusCode);
+      return {
+        success: true,
+        message: `Appointment confirmation email successfully sent to ${input.toEmail}.`
       };
     } catch (error: any) {
       console.error('[sendConfirmationEmailFlow] Error sending email with SendGrid:', error);
       if (error.response) {
-        console.error('[sendConfirmationEmailFlow] SendGrid Error Body:', error.response.body);
+        console.error('[sendConfirmationEmailFlow] SendGrid Error Body:', JSON.stringify(error.response.body));
       }
-      return { 
-        success: false, 
-        message: `Failed to send confirmation email. Error: ${error.message || 'Unknown SendGrid error'}` 
+      return {
+        success: false,
+        message: `Failed to send confirmation email. Error: ${error.message || 'Unknown SendGrid error'}`
       };
     }
   }
