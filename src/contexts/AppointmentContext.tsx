@@ -34,9 +34,31 @@ interface AppointmentContextType {
 
 const AppointmentContext = createContext<AppointmentContextType | undefined>(undefined);
 
+// Simulated email sending function
+async function sendAppointmentConfirmationEmail(receipt: ReceiptData, toast: ReturnType<typeof useToast>['toast']): Promise<void> {
+  console.log(`[AppointmentContext] Simulating sending appointment confirmation email to: ${receipt.patientEmail}`);
+  console.log("[AppointmentContext] Email Details:", {
+    serviceName: receipt.serviceName,
+    date: receipt.date.toLocaleDateString(),
+    time: receipt.time,
+    patientName: receipt.patientName,
+    transactionId: receipt.transactionId,
+    price: receipt.price.toFixed(2),
+  });
+
+  // Simulate a short delay as if an API call was made
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  toast({
+    title: "Email Processed (Simulated)",
+    description: `A confirmation for ${receipt.serviceName} would be sent to ${receipt.patientEmail}.`,
+  });
+}
+
+
 export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const { toast } = useToast(); // Initialize useToast
+  const { toast } = useToast();
   const [currentAppointment, setCurrentAppointment] = useState<Partial<AppointmentFormData> | null>(null);
   const [confirmedAppointments, setConfirmedAppointments] = useState<Appointment[]>([]);
   const [isLoadingAppointments, setIsLoadingAppointments] = useState(true);
@@ -59,15 +81,15 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
           id: docSnap.id,
           ...data,
           date: (data.date as Timestamp).toDate(),
-          createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(),
+          createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(), // Handle potentially missing createdAt during build
         } as Appointment);
       });
       console.log("[AppointmentContext] Fetched appointments array:", appointments);
       setConfirmedAppointments(appointments);
     } catch (error) {
       console.error("[AppointmentContext] Error fetching appointments from Firestore:", error);
-      setConfirmedAppointments([]); // Clear appointments on error
-      toast({ // Notify user of error
+      setConfirmedAppointments([]); 
+      toast({ 
         variant: "destructive",
         title: "Error Loading Appointments",
         description: "Could not load your appointments. Please try again later.",
@@ -76,15 +98,15 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setIsLoadingAppointments(false);
       console.log("[AppointmentContext] fetchAppointments finished. isLoadingAppointments:", false);
     }
-  }, [toast]); // Added toast to dependencies
+  }, [toast]); 
 
   useEffect(() => {
-    console.log("[AppointmentContext] useEffect for user changed. User:", user, "Loading state:", isLoadingAppointments);
+    console.log("[AppointmentContext] useEffect for user changed. User:", user);
     if (user?.uid) {
       fetchAppointments(user.uid);
     } else {
       setConfirmedAppointments([]);
-      setIsLoadingAppointments(false); // Ensure loading is set to false if no user
+      setIsLoadingAppointments(false); 
       console.log("[AppointmentContext] No user or user.uid, cleared appointments. isLoadingAppointments:", false);
     }
   }, [user, fetchAppointments]);
@@ -140,8 +162,10 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const docRef = await addDoc(collection(db, "appointments"), newAppointmentDataToSave);
       console.log("[AppointmentContext] Document added with ID:", docRef.id);
       
-      await fetchAppointments(user.uid); // Re-fetch all appointments to ensure consistency
-
+      // Construct receiptData using potentially fetched `createdAt` and `paymentDate` if needed,
+      // or use client-side approximations if serverTimestamp takes time to resolve for immediate use.
+      // For simplicity here, we'll use current client date for createdAt/paymentDate in receiptData if server values aren't immediately available.
+      // The fetched appointments will have the accurate server timestamps.
       const receiptData: ReceiptData = {
         id: docRef.id,
         userId: user.uid,
@@ -155,9 +179,13 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
         status: newAppointmentDataToSave.status,
         price: newAppointmentDataToSave.price,
         transactionId: newAppointmentDataToSave.transactionId,
-        createdAt: new Date(), 
-        paymentDate: new Date(newAppointmentDataToSave.paymentDate.toDate()), 
+        createdAt: new Date(), // Approximation, actual server timestamp in DB
+        paymentDate: new Date(newAppointmentDataToSave.paymentDate.toDate()), // Convert Firestore Timestamp to JS Date
       };
+      
+      await fetchAppointments(user.uid); // Re-fetch all appointments to ensure consistency
+      await sendAppointmentConfirmationEmail(receiptData, toast); // Call simulated email sending
+
       return receiptData;
     } catch (error) {
       console.error("[AppointmentContext] Error adding appointment to Firestore in confirmAppointment:", error);
@@ -185,8 +213,8 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.log(`[AppointmentContext] getAppointmentByTransactionId called for transactionId: ${transactionId}, userId: ${user.uid}`);
       const q = query(
         collection(db, "appointments"),
-        where("transactionId", "==", transactionId),
-        where("userId", "==", user.uid) // Query specifically for the user's document
+        where("userId", "==", user.uid),
+        where("transactionId", "==", transactionId)
       );
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
@@ -201,8 +229,8 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
         } as Appointment;
       }
       console.log("[AppointmentContext] No appointment found for transactionId:", transactionId, "and userId:", user.uid);
-      toast({ // Inform if not found for this user
-        variant: "default", // Changed to default as it's not strictly an error if not found for user
+      toast({ 
+        variant: "default",
         title: "Receipt Not Found",
         description: "Could not find a receipt with that ID associated with your account.",
       });
