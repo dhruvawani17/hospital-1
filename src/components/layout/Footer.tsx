@@ -35,15 +35,15 @@ export function Footer() {
               <Link href="#" aria-label="GitHub" className="text-muted-foreground hover:text-primary transition-colors"><Github className="h-6 w-6" /></Link>
             </div>
             <p className="text-sm text-muted-foreground mt-4">
-              123 Health St, Wellness City, HC 45678
+              Mumbai 400001
             </p>
             <p className="text-sm text-muted-foreground">
-              (123) 456-7890
+              +91 9876543210
             </p>
           </div>
         </div>
         <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {currentYear} {APP_NAME}. All rights reserved. This is a demo application.</p>
+          <p>&copy; {currentYear} {APP_NAME}. All rights reserved.  </p>
         </div>
       </div>
     </footer>
