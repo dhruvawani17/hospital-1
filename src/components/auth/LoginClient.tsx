@@ -1,7 +1,8 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -14,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { HealthFirstLogo } from "@/components/shared/icons";
 import { APP_NAME } from "@/lib/constants";
 import { Loader2, Mail, Lock, User, LogIn, UserPlus } from "lucide-react";
+import { useToast } from '@/hooks/use-toast';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" {...props}>
@@ -52,6 +54,27 @@ type LoginFormValues = z.infer<ReturnType<typeof formSchema>>;
 export function LoginClient() {
   const { loginWithGoogle, signUpWithEmail, signInWithEmail, loading } = useAuth();
   const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const redirect = searchParams.get('redirect');
+    if (redirect) {
+      let description = "Please log in or create an account to continue.";
+      if (redirect.includes('book-appointment')) {
+        description = "To book an appointment, please log in or create an account first.";
+      } else if (redirect.includes('chat')) {
+        description = "To use the chatbot, please log in or create an account first.";
+      } else if (redirect.includes('dashboard')) {
+        description = "To view your dashboard, please log in or create an account first.";
+      }
+      toast({
+        title: "Authentication Required",
+        description: description,
+      });
+    }
+  }, []);
+
 
   const currentFormSchema = formSchema(isSignUpMode);
 

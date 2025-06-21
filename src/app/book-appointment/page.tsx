@@ -1,4 +1,5 @@
 import { BookAppointmentClient } from "@/components/appointments/BookAppointmentClient";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function BookAppointmentPage() {
-  return <BookAppointmentClient />;
+  return (
+    <ProtectedRoute>
+      <BookAppointmentClient />
+    </ProtectedRoute>
+  );
 }
