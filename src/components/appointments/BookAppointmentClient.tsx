@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { useToast } from "@/hooks/use-toast";
 import { useAppointment } from '@/contexts/AppointmentContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { AppointmentFormData, Service } from '@/types';
 import { SERVICES_DATA, MOCK_TIME_SLOTS } from '@/lib/constants';
 import { CalendarIcon, Clock, User, Mail, Phone, Loader2, BriefcaseMedical } from 'lucide-react';
@@ -39,6 +40,7 @@ export function BookAppointmentClient() {
   const router = useRouter();
   const { toast } = useToast();
   const { currentAppointment, updateAppointmentData, startNewAppointment } = useAppointment();
+  const { t } = useTranslation();
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(currentAppointment?.date ? new Date(currentAppointment.date) : undefined);
 
@@ -64,8 +66,8 @@ export function BookAppointmentClient() {
   async function onSubmit(data: AppointmentFormValues) {
     updateAppointmentData(data);
     toast({
-      title: "Appointment Details Saved",
-      description: "Proceeding to payment.",
+      title: t('appointmentDetailsSaved'),
+      description: t('proceedingToPayment'),
     });
     router.push('/payment');
   }
@@ -74,9 +76,9 @@ export function BookAppointmentClient() {
     <div className="container py-12 md:py-16">
       <Card className="max-w-4xl mx-auto shadow-xl">
         <CardHeader>
-          <CardTitle className="text-3xl font-headline text-center">Book Your Appointment</CardTitle>
+          <CardTitle className="text-3xl font-headline text-center">{t('bookYourAppointment')}</CardTitle>
           <CardDescription className="text-center">
-            Fill in your details and preferences to schedule your visit.
+            {t('bookYourAppointmentDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -89,14 +91,14 @@ export function BookAppointmentClient() {
                 name="serviceId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-lg font-semibold flex items-center"><BriefcaseMedical className="mr-2 h-5 w-5 text-primary" />Select Service</FormLabel>
+                    <FormLabel className="text-lg font-semibold flex items-center"><BriefcaseMedical className="mr-2 h-5 w-5 text-primary" />{t('selectService')}</FormLabel>
                     <Select onValueChange={(value) => {
                         field.onChange(value);
                         const service = SERVICES_DATA.find(s => s.id === value);
                         if (service) startNewAppointment(service); // Update context
                       }} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger><SelectValue placeholder="Choose a medical service" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder={t('chooseMedicalService')} /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {SERVICES_DATA.map(service => (
@@ -118,7 +120,7 @@ export function BookAppointmentClient() {
                   name="date"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel className="text-lg font-semibold flex items-center"><CalendarIcon className="mr-2 h-5 w-5 text-primary" />Appointment Date</FormLabel>
+                      <FormLabel className="text-lg font-semibold flex items-center"><CalendarIcon className="mr-2 h-5 w-5 text-primary" />{t('appointmentDate')}</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -129,7 +131,7 @@ export function BookAppointmentClient() {
                                 !field.value && "text-muted-foreground"
                               )}
                             >
-                              {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                              {field.value ? format(field.value, "PPP") : <span>{t('pickADate')}</span>}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
                           </FormControl>
@@ -156,11 +158,11 @@ export function BookAppointmentClient() {
                   name="time"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-lg font-semibold flex items-center"><Clock className="mr-2 h-5 w-5 text-primary" />Appointment Time</FormLabel>
+                      <FormLabel className="text-lg font-semibold flex items-center"><Clock className="mr-2 h-5 w-5 text-primary" />{t('appointmentTime')}</FormLabel>
                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedDate}>
                         <FormControl>
                           <SelectTrigger disabled={!selectedDate}>
-                            <SelectValue placeholder={!selectedDate ? "Select a date first" : "Select a time slot"} />
+                            <SelectValue placeholder={!selectedDate ? t('selectDateFirst') : t('selectTimeSlot')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -169,7 +171,7 @@ export function BookAppointmentClient() {
                           ))}
                         </SelectContent>
                       </Select>
-                      {!selectedDate && <FormDescription>Please select a date to enable time slots.</FormDescription>}
+                      {!selectedDate && <FormDescription>{t('selectDateToEnable')}</FormDescription>}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -179,7 +181,7 @@ export function BookAppointmentClient() {
               {/* Patient Information */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-xl font-headline">Your Information</CardTitle>
+                  <CardTitle className="text-xl font-headline">{t('yourInformation')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <FormField
@@ -187,8 +189,8 @@ export function BookAppointmentClient() {
                     name="patientName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center"><User className="mr-2 h-4 w-4 text-primary" />Full Name</FormLabel>
-                        <FormControl><Input placeholder="John Doe" {...field} /></FormControl>
+                        <FormLabel className="flex items-center"><User className="mr-2 h-4 w-4 text-primary" />{t('fullName')}</FormLabel>
+                        <FormControl><Input placeholder={t('johnDoePlaceholder')} {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -198,8 +200,8 @@ export function BookAppointmentClient() {
                     name="patientEmail"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center"><Mail className="mr-2 h-4 w-4 text-primary" />Email Address</FormLabel>
-                        <FormControl><Input type="email" placeholder="john.doe@example.com" {...field} /></FormControl>
+                        <FormLabel className="flex items-center"><Mail className="mr-2 h-4 w-4 text-primary" />{t('emailAddress')}</FormLabel>
+                        <FormControl><Input type="email" placeholder={t('emailPlaceholder')} {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -209,8 +211,8 @@ export function BookAppointmentClient() {
                     name="patientPhone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4 text-primary" />Phone Number</FormLabel>
-                        <FormControl><Input type="tel" placeholder="(123) 456-7890" {...field} /></FormControl>
+                        <FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4 text-primary" />{t('phoneNumber')}</FormLabel>
+                        <FormControl><Input type="tel" placeholder={t('phonePlaceholder')} {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -220,7 +222,7 @@ export function BookAppointmentClient() {
               
               <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Proceed to Payment
+                {t('proceedToPayment')}
               </Button>
             </form>
           </Form>
