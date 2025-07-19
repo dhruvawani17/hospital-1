@@ -1,6 +1,6 @@
 "use client";
 
-import { SERVICES_DATA, APP_NAME } from '@/lib/constants';
+import { SERVICES_DATA } from '@/lib/constants';
 import { ServiceItemCard } from './ServiceItemCard';
 import { Input } from "@/components/ui/input";
 import { useState, useMemo } from 'react';
