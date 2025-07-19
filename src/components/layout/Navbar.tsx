@@ -11,17 +11,20 @@ import { APP_NAME } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import React from "react";
+import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
+import { useTranslation } from "@/hooks/useTranslation";
 
 const navLinks = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/services", label: "Services", icon: BriefcaseMedical },
-  { href: "/book-appointment", label: "Book Appointment", icon: CalendarDays },
-  { href: "/chat", label: "Chatbot", icon: Bot }, // Added Chatbot link
+  { href: "/", labelKey: "home", icon: Home },
+  { href: "/services", labelKey: "services", icon: BriefcaseMedical },
+  { href: "/book-appointment", labelKey: "bookAppointment", icon: CalendarDays },
+  { href: "/chat", labelKey: "chatbot", icon: Bot }, // Added Chatbot link
 ];
 
 export function Navbar() {
   const pathname = usePathname();
   const { user, logout, loading } = useAuth();
+  const { t } = useTranslation();
 
   const commonLinkClasses = "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors";
   const activeLinkClasses = "bg-primary/10 text-primary";
@@ -33,7 +36,7 @@ export function Navbar() {
       const LinkContent = (
         <>
           <link.icon className="h-5 w-5" />
-          {link.label}
+          {t(link.labelKey)}
         </>
       );
       if (isMobile) {
@@ -75,22 +78,23 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <LanguageSwitcher />
           {!loading && (
             user ? (
               <>
                 <Button variant="ghost" size="sm" asChild className="hidden md:flex">
                   <Link href="/dashboard" className={cn(commonLinkClasses, pathname === "/dashboard" ? activeLinkClasses : inactiveLinkClasses)}>
-                    <UserCircle className="h-5 w-5" /> Dashboard
+                    <UserCircle className="h-5 w-5" /> {t('dashboard')}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" onClick={logout} className="hidden md:flex">
-                  <LogOut className="mr-2 h-4 w-4" /> Logout
+                  <LogOut className="mr-2 h-4 w-4" /> {t('logout')}
                 </Button>
               </>
             ) : (
               <Button variant="ghost" size="sm" asChild className="hidden md:flex">
                 <Link href="/login" className={cn(commonLinkClasses, pathname === "/login" ? activeLinkClasses : inactiveLinkClasses)}>
-                  <LogIn className="h-5 w-5" /> Login
+                  <LogIn className="h-5 w-5" /> {t('login')}
                 </Link>
               </Button>
             )
@@ -120,17 +124,17 @@ export function Navbar() {
                     <>
                      <SheetClose asChild>
                       <Link href="/dashboard" className={cn(commonLinkClasses, pathname === "/dashboard" ? activeLinkClasses : inactiveLinkClasses, "w-full justify-start")}>
-                        <UserCircle className="h-5 w-5" /> Dashboard
+                        <UserCircle className="h-5 w-5" /> {t('dashboard')}
                       </Link>
                       </SheetClose>
                       <Button variant="outline" size="sm" onClick={() => { logout(); }} className="w-full justify-start">
-                        <LogOut className="mr-2 h-4 w-4" /> Logout
+                        <LogOut className="mr-2 h-4 w-4" /> {t('logout')}
                       </Button>
                     </>
                   ) : (
                      <SheetClose asChild>
                     <Link href="/login" className={cn(commonLinkClasses, pathname === "/login" ? activeLinkClasses : inactiveLinkClasses, "w-full justify-start")}>
-                      <LogIn className="h-5 w-5" /> Login
+                      <LogIn className="h-5 w-5" /> {t('login')}
                     </Link>
                     </SheetClose>
                   )

@@ -63,7 +63,44 @@ export const translations = {
     switchLanguage: "Switch Language",
     hindi: "हिंदी",
     marathi: "मराठी",
-    english: "English"
+    english: "English",
+    
+    // Additional navigation and common terms
+    dashboard: "Dashboard",
+    logout: "Logout",
+    
+    // Services page
+    ourMedicalServices: "Our Medical Services",
+    ourMedicalServicesDesc: "Explore a wide range of specialized medical services offered at HealthFirst Connect.",
+    searchServices: "Search for services (e.g., Cardiology, Check-up)",
+    searchServicesLabel: "Search services",
+    noServicesFound: "No Services Found",
+    noServicesFoundDesc: "Your search did not match any services. Try a different keyword or browse all services.",
+    
+    // Book Appointment page
+    bookYourAppointment: "Book Your Appointment",
+    bookYourAppointmentDesc: "Fill in your details and preferences to schedule your visit.",
+    selectService: "Select Service",
+    chooseMedicalService: "Choose a medical service",
+    appointmentDate: "Appointment Date",
+    pickADate: "Pick a date",
+    appointmentTime: "Appointment Time",
+    selectTimeSlot: "Select a time slot",
+    patientDetails: "Patient Details",
+    patientName: "Patient Name",
+    patientNamePlaceholder: "Enter your full name",
+    emailAddress: "Email Address",
+    emailPlaceholder: "john.doe@example.com",
+    phoneNumber: "Phone Number",
+    phonePlaceholder: "(123) 456-7890",
+    proceedToPayment: "Proceed to Payment",
+    appointmentDetailsSaved: "Appointment Details Saved",
+    proceedingToPayment: "Proceeding to payment.",
+    selectDateFirst: "Select a date first",
+    selectDateToEnable: "Please select a date to enable time slots.",
+    yourInformation: "Your Information",
+    fullName: "Full Name",
+    johnDoePlaceholder: "John Doe"
   },
   
   hi: {
@@ -130,7 +167,44 @@ export const translations = {
     switchLanguage: "भाषा बदलें",
     hindi: "हिंदी",
     marathi: "मराठी", 
-    english: "English"
+    english: "English",
+    
+    // Additional navigation and common terms
+    dashboard: "डैशबोर्ड",
+    logout: "लॉगआउट",
+    
+    // Services page
+    ourMedicalServices: "हमारी चिकित्सा सेवाएं",
+    ourMedicalServicesDesc: "हेल्थफर्स्ट कनेक्ट में दी जाने वाली विशेषज्ञ चिकित्सा सेवाओं की विस्तृत श्रृंखला का अन्वेषण करें।",
+    searchServices: "सेवाओं की खोज करें (जैसे, कार्डियोलॉजी, जांच)",
+    searchServicesLabel: "सेवाएं खोजें",
+    noServicesFound: "कोई सेवा नहीं मिली",
+    noServicesFoundDesc: "आपकी खोज किसी सेवा से मेल नहीं खाती। अलग कीवर्ड आज़माएं या सभी सेवाएं देखें।",
+    
+    // Book Appointment page
+    bookYourAppointment: "अपना अपॉइंटमेंट बुक करें",
+    bookYourAppointmentDesc: "अपनी यात्रा निर्धारित करने के लिए अपनी विवरण और प्राथमिकताएं भरें।",
+    selectService: "सेवा चुनें",
+    chooseMedicalService: "एक चिकित्सा सेवा चुनें",
+    appointmentDate: "अपॉइंटमेंट की तारीख",
+    pickADate: "एक तारीख चुनें",
+    appointmentTime: "अपॉइंटमेंट का समय",
+    selectTimeSlot: "समय स्लॉट चुनें",
+    patientDetails: "रोगी का विवरण",
+    patientName: "रोगी का नाम",
+    patientNamePlaceholder: "अपना पूरा नाम दर्ज करें",
+    emailAddress: "ईमेल पता",
+    emailPlaceholder: "john.doe@example.com",
+    phoneNumber: "फोन नंबर",
+    phonePlaceholder: "(123) 456-7890",
+    proceedToPayment: "भुगतान के लिए आगे बढ़ें",
+    appointmentDetailsSaved: "अपॉइंटमेंट विवरण सहेजा गया",
+    proceedingToPayment: "भुगतान के लिए आगे बढ़ रहे हैं।",
+    selectDateFirst: "पहले एक तारीख चुनें",
+    selectDateToEnable: "समय स्लॉट सक्षम करने के लिए कृपया एक तारीख चुनें।",
+    yourInformation: "आपकी जानकारी",
+    fullName: "पूरा नाम",
+    johnDoePlaceholder: "राम शर्मा"
   },
   
   mr: {
@@ -197,6 +271,43 @@ export const translations = {
     switchLanguage: "भाषा बदला",
     hindi: "हिंदी",
     marathi: "मराठी",
-    english: "English"
+    english: "English",
+    
+    // Additional navigation and common terms
+    dashboard: "डॅशबोर्ड",
+    logout: "लॉगआउट",
+    
+    // Services page
+    ourMedicalServices: "आमच्या वैद्यकीय सेवा",
+    ourMedicalServicesDesc: "हेल्थफर्स्ट कनेक्टमध्ये दिल्या जाणाऱ्या विशेषज्ञ वैद्यकीय सेवांची विस्तृत श्रेणी एक्सप्लोर करा.",
+    searchServices: "सेवांचा शोध घ्या (उदा., कार्डिओलॉजी, तपासणी)",
+    searchServicesLabel: "सेवा शोधा",
+    noServicesFound: "कोणतीही सेवा आढळली नाही",
+    noServicesFoundDesc: "तुमचा शोध कोणत्याही सेवेशी जुळत नाही. वेगळा कीवर्ड वापरून पहा किंवा सर्व सेवा पहा.",
+    
+    // Book Appointment page
+    bookYourAppointment: "तुमची भेट बुक करा",
+    bookYourAppointmentDesc: "तुमची भेट शेड्यूल करण्यासाठी तुमचे तपशील आणि प्राधान्ये भरा.",
+    selectService: "सेवा निवडा",
+    chooseMedicalService: "वैद्यकीय सेवा निवडा",
+    appointmentDate: "भेटीची तारीख",
+    pickADate: "एक तारीख निवडा",
+    appointmentTime: "भेटीचा वेळ",
+    selectTimeSlot: "वेळ स्लॉट निवडा",
+    patientDetails: "रुग्णाचे तपशील",
+    patientName: "रुग्णाचे नाव",
+    patientNamePlaceholder: "तुमचे पूर्ण नाव प्रविष्ट करा",
+    emailAddress: "ईमेल पत्ता",
+    emailPlaceholder: "john.doe@example.com",
+    phoneNumber: "फोन नंबर",
+    phonePlaceholder: "(123) 456-7890",
+    proceedToPayment: "पेमेंटसाठी पुढे जा",
+    appointmentDetailsSaved: "अपॉइंटमेंट तपशील सेव्ह केले",
+    proceedingToPayment: "पेमेंटसाठी पुढे जात आहे.",
+    selectDateFirst: "आधी एक तारीख निवडा",
+    selectDateToEnable: "टाइम स्लॉट सक्षम करण्यासाठी कृपया एक तारीख निवडा.",
+    yourInformation: "तुमची माहिती",
+    fullName: "पूर्ण नाव",
+    johnDoePlaceholder: "राम शर्मा"
   }
 };
