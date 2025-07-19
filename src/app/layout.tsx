@@ -5,6 +5,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AppointmentProvider } from '@/contexts/AppointmentContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { APP_NAME } from '@/lib/constants';
 
 export const metadata: Metadata = {
@@ -31,18 +32,20 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased min-h-screen flex flex-col">
-        <AuthProvider>
-          <AppointmentProvider>
-            <div className="flex flex-col flex-1">
-              <Navbar />
-              <main className="flex-1 bg-background">
-                {children}
-              </main>
-              <Footer />
-            </div>
-            <Toaster />
-          </AppointmentProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <AppointmentProvider>
+              <div className="flex flex-col flex-1">
+                <Navbar />
+                <main className="flex-1 bg-background">
+                  {children}
+                </main>
+                <Footer />
+              </div>
+              <Toaster />
+            </AppointmentProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </body>
     </html>
   );
