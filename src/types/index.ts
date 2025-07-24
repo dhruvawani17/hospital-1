@@ -64,3 +64,54 @@ export interface Doctor {
   dataAiHint?: string;
   specialtyIcon?: React.ElementType;
 }
+
+export interface MedicalRecord {
+  id: string;
+  patientId: string;
+  patientName: string;
+  patientEmail: string;
+  doctorId?: string;
+  doctorName?: string;
+  visitDate: Date;
+  diagnosis: string;
+  symptoms: string;
+  treatment: string;
+  medications: Medication[];
+  vitals: Vitals;
+  notes?: string;
+  followUpDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Medication {
+  name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions?: string;
+}
+
+export interface Vitals {
+  bloodPressure?: string;
+  heartRate?: number;
+  temperature?: number;
+  weight?: number;
+  height?: number;
+  respiratoryRate?: number;
+  oxygenSaturation?: number;
+}
+
+export interface MedicalRecordFormData {
+  patientName: string;
+  patientEmail: string;
+  doctorName: string;
+  visitDate: Date;
+  diagnosis: string;
+  symptoms: string;
+  treatment: string;
+  medications: Medication[];
+  vitals: Vitals;
+  notes?: string;
+  followUpDate?: Date;
+}

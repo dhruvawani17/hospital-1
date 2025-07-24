@@ -5,6 +5,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AppointmentProvider } from '@/contexts/AppointmentContext';
+import { MedicalRecordsProvider } from '@/contexts/MedicalRecordsContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { APP_NAME } from '@/lib/constants';
 
@@ -35,14 +36,16 @@ export default function RootLayout({
         <LanguageProvider>
           <AuthProvider>
             <AppointmentProvider>
-              <div className="flex flex-col flex-1">
-                <Navbar />
-                <main className="flex-1 bg-background">
-                  {children}
-                </main>
-                <Footer />
-              </div>
-              <Toaster />
+              <MedicalRecordsProvider>
+                <div className="flex flex-col flex-1">
+                  <Navbar />
+                  <main className="flex-1 bg-background">
+                    {children}
+                  </main>
+                  <Footer />
+                </div>
+                <Toaster />
+              </MedicalRecordsProvider>
             </AppointmentProvider>
           </AuthProvider>
         </LanguageProvider>

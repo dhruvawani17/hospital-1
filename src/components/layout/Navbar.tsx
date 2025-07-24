@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BriefcaseMedical, CalendarDays, LogIn, LogOut, UserCircle, Menu, Bot } from "lucide-react"; // Added Bot
+import { Home, BriefcaseMedical, CalendarDays, LogIn, LogOut, UserCircle, Menu, Bot, FileText } from "lucide-react"; // Added Bot and FileText
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { HealthFirstLogo } from "@/components/shared/icons";
@@ -19,6 +19,10 @@ const navLinks = [
   { href: "/services", labelKey: "services", icon: BriefcaseMedical },
   { href: "/book-appointment", labelKey: "bookAppointment", icon: CalendarDays },
   { href: "/chat", labelKey: "chatbot", icon: Bot }, // Added Chatbot link
+];
+
+const userNavLinks = [
+  { href: "/medical-records", labelKey: "medicalRecords", icon: FileText },
 ];
 
 export function Navbar() {
@@ -65,6 +69,41 @@ export function Navbar() {
     })
   );
 
+  const renderUserNavLinks = (isMobile: boolean = false) => (
+    userNavLinks.map((link) => {
+      const isActive = pathname === link.href;
+      const LinkContent = (
+        <>
+          <link.icon className="h-5 w-5" />
+          {t(link.labelKey)}
+        </>
+      );
+      if (isMobile) {
+        return (
+          <SheetClose asChild key={link.href}>
+            <Link
+              href={link.href}
+              className={cn(commonLinkClasses, isActive ? activeLinkClasses : inactiveLinkClasses, "w-full justify-start")}
+              aria-current={isActive ? "page" : undefined}
+            >
+              {LinkContent}
+            </Link>
+          </SheetClose>
+        );
+      }
+      return (
+        <Link
+          key={link.href}
+          href={link.href}
+          className={cn(commonLinkClasses, isActive ? activeLinkClasses : inactiveLinkClasses)}
+          aria-current={isActive ? "page" : undefined}
+        >
+          {LinkContent}
+        </Link>
+      );
+    })
+  );
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
@@ -75,6 +114,7 @@ export function Navbar() {
 
         <nav className="hidden md:flex items-center gap-2 lg:gap-4">
           {renderNavLinks()}
+          {user && renderUserNavLinks()}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -118,6 +158,7 @@ export function Navbar() {
               </div>
               <nav className="flex flex-col gap-3">
                 {renderNavLinks(true)}
+                {user && renderUserNavLinks(true)}
                 <hr className="my-2"/>
                 {!loading && (
                   user ? (

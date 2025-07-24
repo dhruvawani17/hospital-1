@@ -75,6 +75,7 @@ export const translations = {
     // Additional navigation and common terms
     dashboard: "Dashboard",
     logout: "Logout",
+    medicalRecords: "Medical Records",
     
     // Services page
     ourMedicalServices: "Our Medical Services",
@@ -186,6 +187,7 @@ export const translations = {
     // Additional navigation and common terms
     dashboard: "डैशबोर्ड",
     logout: "लॉगआउट",
+    medicalRecords: "मेडिकल रिकॉर्ड",
     
     // Services page
     ourMedicalServices: "हमारी चिकित्सा सेवाएं",
@@ -297,6 +299,7 @@ export const translations = {
     // Additional navigation and common terms
     dashboard: "डॅशबोर्ड",
     logout: "लॉगआउट",
+    medicalRecords: "वैद्यकीय नोंदी",
     
     // Services page
     ourMedicalServices: "आमच्या वैद्यकीय सेवा",
