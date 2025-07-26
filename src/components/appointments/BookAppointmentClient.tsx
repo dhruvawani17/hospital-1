@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -19,8 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAppointment } from '@/contexts/AppointmentContext';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { AppointmentFormData, Service } from '@/types';
-import { SERVICES_DATA, MOCK_TIME_SLOTS } from '@/lib/constants';
+import type { Service } from '@/types';
+import { SERVICES_DATA } from '@/lib/constants';
 import { CalendarIcon, Clock, User, Mail, Phone, Loader2, BriefcaseMedical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -39,10 +39,12 @@ type AppointmentFormValues = z.infer<typeof appointmentFormSchema>;
 export function BookAppointmentClient() {
   const router = useRouter();
   const { toast } = useToast();
-  const { currentAppointment, updateAppointmentData, startNewAppointment } = useAppointment();
+  const { currentAppointment, updateAppointmentData, startNewAppointment, getAvailableTimeSlots } = useAppointment();
   const { t } = useTranslation();
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(currentAppointment?.date ? new Date(currentAppointment.date) : undefined);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentFormSchema),
@@ -61,6 +63,44 @@ export function BookAppointmentClient() {
       form.setValue("serviceId", currentAppointment.serviceId);
     }
   }, [currentAppointment, form]);
+
+  // Fetch available slots when service or date changes
+  useEffect(() => {
+    const fetchAvailableSlots = async () => {
+      const serviceId = form.getValues("serviceId");
+      if (serviceId && selectedDate) {
+        setIsLoadingSlots(true);
+        try {
+          const slots = await getAvailableTimeSlots(serviceId, selectedDate);
+          setAvailableTimeSlots(slots);
+          
+          // Clear selected time if it's no longer available
+          const currentTime = form.getValues("time");
+          if (currentTime && !slots.includes(currentTime)) {
+            form.setValue("time", "");
+            toast({
+              title: "Time Slot Updated",
+              description: "Your selected time slot is no longer available. Please choose a new time.",
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching available slots:", error);
+          setAvailableTimeSlots([]);
+          toast({
+            variant: "destructive",
+            title: "Error Loading Slots",
+            description: "Could not load available time slots. Please try again.",
+          });
+        } finally {
+          setIsLoadingSlots(false);
+        }
+      } else {
+        setAvailableTimeSlots([]);
+      }
+    };
+
+    fetchAvailableSlots();
+  }, [form, selectedDate, getAvailableTimeSlots, toast]);
   
 
   async function onSubmit(data: AppointmentFormValues) {
@@ -96,6 +136,8 @@ export function BookAppointmentClient() {
                         field.onChange(value);
                         const service = SERVICES_DATA.find(s => s.id === value);
                         if (service) startNewAppointment(service); // Update context
+                        // Clear time selection when service changes
+                        form.setValue("time", "");
                       }} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder={t('chooseMedicalService')} /></SelectTrigger>
@@ -143,6 +185,8 @@ export function BookAppointmentClient() {
                             onSelect={(date) => {
                               field.onChange(date);
                               setSelectedDate(date);
+                              // Clear time selection when date changes
+                              form.setValue("time", "");
                             }}
                             disabled={(date) => date < addDays(new Date(), -1) || date < new Date("1900-01-01")} // Disable past dates
                             initialFocus
@@ -158,20 +202,43 @@ export function BookAppointmentClient() {
                   name="time"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-lg font-semibold flex items-center"><Clock className="mr-2 h-5 w-5 text-primary" />{t('appointmentTime')}</FormLabel>
-                       <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedDate}>
+                      <FormLabel className="text-lg font-semibold flex items-center">
+                        <Clock className="mr-2 h-5 w-5 text-primary" />
+                        {t('appointmentTime')}
+                      </FormLabel>
+                       <Select 
+                         onValueChange={field.onChange} 
+                         defaultValue={field.value} 
+                         disabled={!selectedDate || !form.getValues("serviceId") || isLoadingSlots}
+                       >
                         <FormControl>
-                          <SelectTrigger disabled={!selectedDate}>
-                            <SelectValue placeholder={!selectedDate ? t('selectDateFirst') : t('selectTimeSlot')} />
+                          <SelectTrigger disabled={!selectedDate || !form.getValues("serviceId") || isLoadingSlots}>
+                            <SelectValue placeholder={
+                              !selectedDate ? t('selectDateFirst') : 
+                              !form.getValues("serviceId") ? "Select service first" :
+                              isLoadingSlots ? "Loading available slots..." :
+                              availableTimeSlots.length === 0 ? "No available slots" :
+                              t('selectTimeSlot')
+                            } />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {MOCK_TIME_SLOTS.map(slot => (
-                            <SelectItem key={slot} value={slot}>{slot}</SelectItem>
-                          ))}
+                          {availableTimeSlots.length > 0 ? (
+                            availableTimeSlots.map(slot => (
+                              <SelectItem key={slot} value={slot}>{slot}</SelectItem>
+                            ))
+                          ) : (
+                            !isLoadingSlots && selectedDate && form.getValues("serviceId") && (
+                              <SelectItem value="" disabled>No available slots for this date</SelectItem>
+                            )
+                          )}
                         </SelectContent>
                       </Select>
                       {!selectedDate && <FormDescription>{t('selectDateToEnable')}</FormDescription>}
+                      {selectedDate && !form.getValues("serviceId") && <FormDescription>Please select a service first</FormDescription>}
+                      {selectedDate && form.getValues("serviceId") && availableTimeSlots.length === 0 && !isLoadingSlots && 
+                        <FormDescription className="text-orange-600">No available time slots for this date. Please choose a different date.</FormDescription>
+                      }
                       <FormMessage />
                     </FormItem>
                   )}

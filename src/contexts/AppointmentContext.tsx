@@ -3,7 +3,7 @@
 
 import type { Appointment, AppointmentFormData, ReceiptData, Service } from "@/types";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { SERVICES_DATA, APP_NAME } from "@/lib/constants";
+import { SERVICES_DATA, MOCK_TIME_SLOTS } from "@/lib/constants";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -32,6 +32,8 @@ interface AppointmentContextType {
   getAppointmentByTransactionId: (transactionId: string) => Promise<Appointment | null>;
   clearCurrentAppointment: () => void;
   cancelAppointment: (appointmentId: string) => Promise<void>;
+  checkSlotAvailability: (serviceId: string, date: Date, timeSlot: string) => Promise<boolean>;
+  getAvailableTimeSlots: (serviceId: string, date: Date) => Promise<string[]>;
 }
 
 const AppointmentContext = createContext<AppointmentContextType | undefined>(undefined);
@@ -141,6 +143,73 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCurrentAppointment(prev => ({ ...prev, ...data }));
   }, []);
 
+  const checkSlotAvailability = useCallback(async (serviceId: string, date: Date, timeSlot: string): Promise<boolean> => {
+    try {
+      console.log(`[AppointmentContext] Checking slot availability for service: ${serviceId}, date: ${date.toDateString()}, time: ${timeSlot}`);
+      
+      const dateStart = new Date(date);
+      dateStart.setHours(0, 0, 0, 0);
+      const dateEnd = new Date(date);
+      dateEnd.setHours(23, 59, 59, 999);
+      
+      const q = query(
+        collection(db, "appointments"),
+        where("serviceId", "==", serviceId),
+        where("date", ">=", Timestamp.fromDate(dateStart)),
+        where("date", "<=", Timestamp.fromDate(dateEnd)),
+        where("time", "==", timeSlot),
+        where("status", "in", ["confirmed", "pending"])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const isAvailable = querySnapshot.empty;
+      
+      console.log(`[AppointmentContext] Slot availability check result: ${isAvailable ? 'AVAILABLE' : 'BOOKED'}`);
+      return isAvailable;
+    } catch (error) {
+      console.error("[AppointmentContext] Error checking slot availability:", error);
+      // In case of error, assume slot is unavailable for safety
+      return false;
+    }
+  }, []);
+
+  const getAvailableTimeSlots = useCallback(async (serviceId: string, date: Date): Promise<string[]> => {
+    try {
+      console.log(`[AppointmentContext] Getting available time slots for service: ${serviceId}, date: ${date.toDateString()}`);
+      
+      const dateStart = new Date(date);
+      dateStart.setHours(0, 0, 0, 0);
+      const dateEnd = new Date(date);
+      dateEnd.setHours(23, 59, 59, 999);
+      
+      const q = query(
+        collection(db, "appointments"),
+        where("serviceId", "==", serviceId),
+        where("date", ">=", Timestamp.fromDate(dateStart)),
+        where("date", "<=", Timestamp.fromDate(dateEnd)),
+        where("status", "in", ["confirmed", "pending"])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const bookedSlots = new Set<string>();
+      
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        bookedSlots.add(data.time);
+      });
+      
+      // Filter out booked slots from all available slots
+      const availableSlots = MOCK_TIME_SLOTS.filter(slot => !bookedSlots.has(slot));
+      
+      console.log(`[AppointmentContext] Found ${bookedSlots.size} booked slots, ${availableSlots.length} available slots`);
+      return availableSlots;
+    } catch (error) {
+      console.error("[AppointmentContext] Error getting available time slots:", error);
+      // In case of error, return empty array for safety
+      return [];
+    }
+  }, []);
+
   const confirmAppointment = useCallback(async (paymentDetails: { transactionId: string }): Promise<ReceiptData | null> => {
     if (!user?.uid || !currentAppointment || !currentAppointment.serviceId || !currentAppointment.date || !currentAppointment.time || !currentAppointment.patientName || !currentAppointment.patientEmail) {
       console.error("[AppointmentContext] Incomplete appointment data or user not logged in for confirmAppointment. Current appointment:", currentAppointment, "User:", user);
@@ -148,6 +217,18 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
         variant: "destructive",
         title: "Booking Error",
         description: "Missing required information or user not logged in to confirm booking.",
+      });
+      return null;
+    }
+
+    // Check if the slot is still available before confirming
+    const isSlotAvailable = await checkSlotAvailability(currentAppointment.serviceId, currentAppointment.date, currentAppointment.time);
+    if (!isSlotAvailable) {
+      console.error("[AppointmentContext] Slot no longer available for appointment confirmation");
+      toast({
+        variant: "destructive",
+        title: "Slot Unavailable",
+        description: "This time slot has been booked by another user. Please select a different time.",
       });
       return null;
     }
@@ -214,7 +295,7 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
       return null;
     }
-  }, [user, currentAppointment, fetchAppointments, toast]);
+  }, [user, currentAppointment, fetchAppointments, toast, checkSlotAvailability]);
 
   const getAppointmentByTransactionId = useCallback(async (transactionId: string): Promise<Appointment | null> => {
     if (!user?.uid) {
@@ -305,7 +386,9 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       confirmAppointment,
       getAppointmentByTransactionId,
       clearCurrentAppointment,
-      cancelAppointment
+      cancelAppointment,
+      checkSlotAvailability,
+      getAvailableTimeSlots
     }}>
       {children}
     </AppointmentContext.Provider>
