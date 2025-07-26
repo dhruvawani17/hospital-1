@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, Bot, User, Loader2, ExternalLink } from 'lucide-react';
+import { Send, Bot, User, Loader2, ExternalLink, Upload, FileText, X } from 'lucide-react';
 import { chatWithBot, type ChatInput, type ChatOutput } from '@/ai/flows/chatFlow';
+import { analyzeMedicalReport, type MedicalReportInput, type MedicalReportOutput } from '@/ai/flows/medicalReportFlow';
 import { useToast } from '@/hooks/use-toast';
 import { APP_NAME, SERVICES_DATA } from '@/lib/constants';
 import { useAppointment } from '@/contexts/AppointmentContext';
@@ -23,14 +24,21 @@ interface Message {
   text: string;
   timestamp: Date;
   receiptUrl?: string; 
+  medicalReport?: {
+    fileName: string;
+    analysis?: MedicalReportOutput;
+  };
 }
 
 export function ChatbotClient() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const router = useRouter();
   const { startNewAppointment, updateAppointmentData, confirmAppointment: confirmAppointmentInContext } = useAppointment();
@@ -49,7 +57,13 @@ export function ChatbotClient() {
       {
         id: 'initial-greeting',
         sender: 'bot',
-        text: `Hello! I'm MediBuddy, your AI assistant for ${APP_NAME}. How can I help you today? You can ask me about our services or to help book an appointment.`,
+        text: `Hello! I'm MediBuddy, your AI assistant for ${APP_NAME}. I can help you in several ways:
+
+🩺 **Book Appointments** - Ask me about our services or help you schedule appointments
+📋 **Analyze Medical Reports** - Upload your medical reports and I'll provide a summary and insights
+❓ **Answer Questions** - Get information about our services and general health tips
+
+How can I assist you today?`,
         timestamp: new Date(),
       },
     ]);
@@ -58,6 +72,128 @@ export function ChatbotClient() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          variant: "destructive",
+          title: "Invalid File Type",
+          description: "Please upload an image file (JPG, PNG, etc.)"
+        });
+        return;
+      }
+      
+      // Check file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          variant: "destructive",
+          title: "File Too Large",
+          description: "Please upload an image smaller than 10MB"
+        });
+        return;
+      }
+      
+      setUploadedFile(file);
+    }
+  };
+
+  const removeUploadedFile = () => {
+    setUploadedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove the data URL prefix to get just the base64 data
+        const base64Data = result.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleMedicalReportAnalysis = async () => {
+    if (!uploadedFile) return;
+
+    setIsAnalyzing(true);
+    
+    try {
+      const base64Data = await convertFileToBase64(uploadedFile);
+      
+      // Add user message showing they uploaded a report
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        sender: 'user',
+        text: `I've uploaded a medical report: ${uploadedFile.name}`,
+        timestamp: new Date(),
+        medicalReport: {
+          fileName: uploadedFile.name,
+        }
+      };
+      setMessages(prev => [...prev, userMessage]);
+
+      const analysisInput: MedicalReportInput = {
+        imageData: base64Data,
+        mimeType: uploadedFile.type,
+        patientQuestion: inputValue.trim() || undefined,
+      };
+
+      const analysisResult = await analyzeMedicalReport(analysisInput);
+
+      // Create bot response with analysis
+      const botMessage: Message = {
+        id: `bot-${Date.now()}`,
+        sender: 'bot',
+        text: `I've analyzed your medical report. Here's what I found:
+
+**Summary:**
+${analysisResult.summary}
+
+**Key Findings:**
+${analysisResult.keyFindings.map(finding => `• ${finding}`).join('\n')}
+
+**Recommendations:**
+${analysisResult.recommendations}
+
+${analysisResult.disclaimer}`,
+        timestamp: new Date(),
+        medicalReport: {
+          fileName: uploadedFile.name,
+          analysis: analysisResult,
+        }
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+      
+      // Clear the uploaded file and input
+      removeUploadedFile();
+      setInputValue('');
+
+      toast({
+        title: "Analysis Complete",
+        description: "Your medical report has been analyzed successfully."
+      });
+
+    } catch (error) {
+      console.error('Error analyzing medical report:', error);
+      toast({
+        variant: "destructive",
+        title: "Analysis Failed",
+        description: "Failed to analyze the medical report. Please try again."
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleSendMessage = async (e?: React.FormEvent<HTMLFormElement>) => {
@@ -189,6 +325,14 @@ export function ChatbotClient() {
                         : 'bg-muted text-muted-foreground'
                     }`}
                   >
+                    {msg.medicalReport && msg.sender === 'user' && (
+                      <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-md flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-blue-600" />
+                        <span className="text-xs text-blue-800 font-medium">
+                          Medical Report: {msg.medicalReport.fileName}
+                        </span>
+                      </div>
+                    )}
                     {msg.text.split('\n').map((line, index, arr) => (
                         <React.Fragment key={index}>
                         {line}
@@ -224,18 +368,80 @@ export function ChatbotClient() {
           </ScrollArea>
         </CardContent>
         <div className="border-t p-4 bg-background">
+          {/* File upload section */}
+          {uploadedFile && (
+            <div className="mb-4 p-3 bg-muted rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{uploadedFile.name}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={removeUploadedFile}
+                  disabled={isAnalyzing}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="mt-2 flex gap-2">
+                <Button
+                  onClick={handleMedicalReportAnalysis}
+                  disabled={isAnalyzing}
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    'Analyze Medical Report'
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+          
           <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-            <Input
-              ref={inputRef}
-              type="text"
-              placeholder="Type your message..."
-              value={inputValue}
-              onChange={handleInputChange}
-              className="flex-1"
-              disabled={isLoading}
-              autoComplete="off"
-            />
-            <Button type="submit" size="icon" disabled={isLoading || !inputValue.trim()} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+            <div className="flex-1 flex gap-2">
+              <Input
+                ref={inputRef}
+                type="text"
+                placeholder={uploadedFile ? "Ask a specific question about your report (optional)..." : "Type your message..."}
+                value={inputValue}
+                onChange={handleInputChange}
+                className="flex-1"
+                disabled={isLoading || isAnalyzing}
+                autoComplete="off"
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+                disabled={isLoading || isAnalyzing}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading || isAnalyzing}
+                title="Upload medical report"
+              >
+                <Upload className="h-5 w-5" />
+              </Button>
+            </div>
+            <Button 
+              type="submit" 
+              size="icon" 
+              disabled={isLoading || isAnalyzing || (!inputValue.trim() && !uploadedFile)} 
+              className="bg-accent hover:bg-accent/90 text-accent-foreground"
+            >
               <Send className="h-5 w-5" />
               <span className="sr-only">Send message</span>
             </Button>
