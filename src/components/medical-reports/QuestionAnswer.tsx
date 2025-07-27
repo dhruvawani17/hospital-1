@@ -87,22 +87,22 @@ export function QuestionAnswer({ reportText }: QuestionAnswerProps) {
   };
 
   return (
-    <Card className="h-[600px] flex flex-col">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5" />
+    <Card className="h-[500px] sm:h-[600px] flex flex-col">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+          <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5" />
           Ask Questions About Your Report
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col space-y-4">
+      <CardContent className="flex-1 flex flex-col space-y-3 sm:space-y-4">
         {/* Messages Area */}
-        <ScrollArea className="flex-1 border rounded-lg p-4">
+        <ScrollArea className="flex-1 border rounded-lg p-3 sm:p-4">
           {messages.length === 0 ? (
-            <div className="text-center py-8 space-y-4">
-              <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
+            <div className="text-center py-6 sm:py-8 space-y-3 sm:space-y-4">
+              <MessageSquare className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground" />
               <div>
-                <h3 className="font-medium">Ask questions about your report</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-medium text-sm sm:text-base">Ask questions about your report</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   I can help explain medical terms, clarify findings, and answer questions about your report.
                 </p>
               </div>
@@ -115,7 +115,7 @@ export function QuestionAnswer({ reportText }: QuestionAnswerProps) {
                       variant="outline"
                       size="sm"
                       onClick={() => handleSuggestedQuestion(question)}
-                      className="text-xs"
+                      className="text-xs h-8 px-3"
                     >
                       {question}
                     </Button>
@@ -124,47 +124,47 @@ export function QuestionAnswer({ reportText }: QuestionAnswerProps) {
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex items-start gap-3 ${
+                  className={`flex items-start gap-2 sm:gap-3 ${
                     message.isUser ? 'justify-end' : 'justify-start'
                   }`}
                 >
                   {!message.isUser && (
-                    <div className="p-2 bg-primary/10 rounded-full">
-                      <Bot className="h-4 w-4 text-primary" />
+                    <div className="p-1.5 sm:p-2 bg-primary/10 rounded-full flex-shrink-0">
+                      <Bot className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                     </div>
                   )}
                   <div
-                    className={`max-w-[80%] p-3 rounded-lg ${
+                    className={`max-w-[85%] sm:max-w-[80%] p-2.5 sm:p-3 rounded-lg break-words ${
                       message.isUser
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted'
                     }`}
                   >
-                    <p className="text-sm">{message.text}</p>
+                    <p className="text-xs sm:text-sm whitespace-pre-wrap overflow-wrap-anywhere">{message.text}</p>
                     <p className="text-xs opacity-70 mt-1">
                       {message.timestamp.toLocaleTimeString()}
                     </p>
                   </div>
                   {message.isUser && (
-                    <div className="p-2 bg-primary/10 rounded-full">
-                      <User className="h-4 w-4 text-primary" />
+                    <div className="p-1.5 sm:p-2 bg-primary/10 rounded-full flex-shrink-0">
+                      <User className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                     </div>
                   )}
                 </div>
               ))}
               {isLoading && (
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-primary/10 rounded-full">
-                    <Bot className="h-4 w-4 text-primary" />
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 bg-primary/10 rounded-full">
+                    <Bot className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                   </div>
-                  <div className="bg-muted p-3 rounded-lg">
+                  <div className="bg-muted p-2.5 sm:p-3 rounded-lg">
                     <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <p className="text-sm">Thinking...</p>
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                      <p className="text-xs sm:text-sm">Thinking...</p>
                     </div>
                   </div>
                 </div>
@@ -185,14 +185,14 @@ export function QuestionAnswer({ reportText }: QuestionAnswerProps) {
         {messages.length === 0 && (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Suggested questions:</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               {suggestedQuestions.map((question, index) => (
                 <Button
                   key={index}
                   variant="ghost"
                   size="sm"
                   onClick={() => handleSuggestedQuestion(question)}
-                  className="text-left h-auto p-2 text-xs justify-start"
+                  className="text-left h-auto p-2 text-xs justify-start whitespace-normal"
                 >
                   {question}
                 </Button>
@@ -208,9 +208,9 @@ export function QuestionAnswer({ reportText }: QuestionAnswerProps) {
             onChange={(e) => setCurrentQuestion(e.target.value)}
             placeholder="Ask a question about your report..."
             disabled={isLoading}
-            className="flex-1"
+            className="flex-1 h-12 sm:h-10"
           />
-          <Button type="submit" disabled={isLoading || !currentQuestion.trim()}>
+          <Button type="submit" disabled={isLoading || !currentQuestion.trim()} className="h-12 w-12 sm:h-10 sm:w-10 p-0 flex-shrink-0">
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
