@@ -221,9 +221,9 @@ export function QuestionAnswer({ reportText }: QuestionAnswerProps) {
 
         {/* Disclaimer */}
         <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-          <p>
+{/*           <p>
             💡 Remember: This AI assistant provides general information only. Always consult your healthcare provider for medical advice.
-          </p>
+          </p> */}
         </div>
       </CardContent>
     </Card>
