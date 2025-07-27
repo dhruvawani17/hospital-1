@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle, BriefcaseMedical, CalendarDays, Users, Award, Stethoscope } from 'lucide-react';
+import { CheckCircle, BriefcaseMedical, CalendarDays, Users, Award, Stethoscope, FileText, MessageSquare } from 'lucide-react';
 import { SERVICES_DATA, APP_NAME, DOCTORS_DATA } from '@/lib/constants';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -67,6 +67,73 @@ export default function HomePage() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* AI Medical Report Q&A Section */}
+      <section className="w-full py-16 md:py-24 bg-gradient-to-br from-blue-50 via-background to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
+        <div className="container px-4 md:px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-headline font-bold mb-4">AI-Powered Medical Report Analysis</h2>
+            <p className="max-w-2xl mx-auto text-lg text-muted-foreground">
+              Upload your medical reports and get instant AI-powered summaries and answers to your questions. 
+              Our advanced AI helps you understand your health reports better.
+            </p>
+          </div>
+          <div className="max-w-4xl mx-auto">
+            <Card className="overflow-hidden hover:shadow-xl transition-shadow duration-300 ease-in-out">
+              <div className="grid md:grid-cols-2 gap-0">
+                <div className="p-8 space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-full">
+                        <FileText className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-headline font-semibold">Upload Your Reports</h3>
+                        <p className="text-sm text-muted-foreground">PDF, images, or text format</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-full">
+                        <Award className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-headline font-semibold">Get AI Summary</h3>
+                        <p className="text-sm text-muted-foreground">Instant report analysis and insights</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-full">
+                        <MessageSquare className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-headline font-semibold">Ask Questions</h3>
+                        <p className="text-sm text-muted-foreground">Get answers about your report</p>
+                      </div>
+                    </div>
+                  </div>
+                  <Button asChild size="lg" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                    <Link href="/medical-reports">
+                      <FileText className="mr-2 h-5 w-5" />
+                      Analyze Medical Report
+                    </Link>
+                  </Button>
+                </div>
+                <div className="bg-gradient-to-br from-primary/5 to-accent/5 p-8 flex items-center justify-center">
+                  <div className="text-center space-y-4">
+                    <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit">
+                      <BriefcaseMedical className="h-12 w-12 text-primary" />
+                    </div>
+                    <h3 className="font-headline font-semibold text-lg">Powered by AI</h3>
+                    <p className="text-sm text-muted-foreground max-w-xs">
+                      Advanced medical AI assists in understanding your reports while maintaining privacy and security.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       </section>

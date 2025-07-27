@@ -4,3 +4,4 @@ config();
 
 import '@/ai/flows/chatFlow'; // Updated to import the new chat flow
 import '@/ai/flows/send-confirmation-email-flow'; // Import the new email flow
+import '@/ai/flows/medicalReportFlow'; // Import the medical report flow
