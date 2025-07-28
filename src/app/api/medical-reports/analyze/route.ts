@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Tesseract from 'tesseract.js';
 
-// Real OCR implementation using Tesseract.js
+// OCR implementation with graceful fallback
 async function extractTextFromImage(imageBuffer: ArrayBuffer): Promise<string> {
   console.log('Starting OCR processing with Tesseract.js');
   
@@ -9,23 +9,38 @@ async function extractTextFromImage(imageBuffer: ArrayBuffer): Promise<string> {
     // Convert ArrayBuffer to Buffer for Node.js environment
     const buffer = Buffer.from(imageBuffer);
     
-    // Use Tesseract.js to extract text from image
-    const { data: { text } } = await Tesseract.recognize(buffer, 'eng', {
-      logger: m => console.log('OCR Progress:', m)
-    });
-    
-    console.log('OCR completed successfully, extracted text length:', text.length);
-    
-    // Clean up the extracted text
-    const cleanedText = text
-      .replace(/\n\s*\n/g, '\n') // Remove multiple consecutive newlines
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .trim();
-    
-    return cleanedText;
+    // Attempt OCR with Tesseract.js
+    try {
+      const { createWorker } = Tesseract;
+      const worker = await createWorker('eng');
+      
+      try {
+        const { data: { text } } = await worker.recognize(buffer);
+        console.log('OCR completed successfully, extracted text length:', text.length);
+        
+        // Clean up the extracted text
+        const cleanedText = text
+          .replace(/\n\s*\n/g, '\n') // Remove multiple consecutive newlines
+          .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+          .trim();
+        
+        if (cleanedText.length > 0) {
+          return cleanedText;
+        } else {
+          throw new Error('No text could be extracted from the image');
+        }
+      } finally {
+        await worker.terminate();
+      }
+    } catch (ocrError) {
+      console.error('Tesseract OCR failed:', ocrError);
+      
+      // Return a user-friendly error message instead of throwing
+      throw new Error('Unable to extract text from this image. This could be due to:\n\n• Image quality is too poor or blurry\n• Text is too small or unclear\n• Image format is not optimal for OCR\n• Technical limitations with the OCR service\n\nPlease try:\n• Using a clearer, higher-quality image\n• Taking a photo with better lighting\n• Copying the text manually using the text input option below');
+    }
   } catch (error) {
     console.error('OCR processing failed:', error);
-    throw new Error('Failed to extract text from image using OCR');
+    throw error; // Re-throw the user-friendly error
   }
 }
 
@@ -123,7 +138,7 @@ export async function POST(request: NextRequest) {
         } catch (ocrError) {
           console.error('OCR processing failed:', ocrError);
           return NextResponse.json(
-            { error: 'Failed to extract text from image. Please try again or copy the text manually.' },
+            { error: ocrError instanceof Error ? ocrError.message : 'Failed to extract text from image. Please try with a clearer image or copy the text manually.' },
             { status: 400 }
           );
         }

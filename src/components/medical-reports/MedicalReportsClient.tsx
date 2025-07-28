@@ -74,7 +74,13 @@ export default function MedicalReportsClient() {
       });
 
       if (!response.ok) {
-        throw new Error(`Analysis failed: ${response.statusText}`);
+        // Try to get the error message from the response
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Analysis failed: ${response.statusText}`);
+        } catch (jsonError) {
+          throw new Error(`Analysis failed: ${response.statusText}`);
+        }
       }
 
       const result = await response.json();
