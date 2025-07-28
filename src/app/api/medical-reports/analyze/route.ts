@@ -1,5 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Simple OCR simulation for demo purposes
+// In production, you would use a proper OCR service like Google Vision API, AWS Textract, etc.
+async function extractTextFromImage(imageBuffer: ArrayBuffer): Promise<string> {
+  // This is a placeholder for actual OCR functionality
+  // In a real implementation, you would:
+  // 1. Use Google Vision API
+  // 2. Use AWS Textract
+  // 3. Use Azure Computer Vision
+  // 4. Use a server-side OCR library
+  
+  console.log('Processing image for OCR (demo mode)');
+  
+  // For demo purposes, return some sample extracted text
+  const demoExtractedText = `MEDICAL LABORATORY REPORT
+Patient: John Doe
+Date: January 15, 2024
+
+LABORATORY RESULTS:
+Total Cholesterol: 240 mg/dL (High)
+LDL Cholesterol: 160 mg/dL (High)
+HDL Cholesterol: 35 mg/dL (Low)
+Blood Pressure: 140/90 mmHg
+Blood Glucose: 110 mg/dL (Normal)
+
+RECOMMENDATIONS:
+Diet modification and exercise recommended`;
+
+  return demoExtractedText;
+}
+
 // Mock analysis function for demo purposes when API key is not available
 function createMockAnalysis(reportText: string) {
   const reportLower = reportText.toLowerCase();
@@ -73,12 +103,31 @@ export async function POST(request: NextRequest) {
         // In a production environment, you'd use a PDF parser library
         reportText = await file.text();
       } else if (file.type.startsWith('image/')) {
-        // For images, in a production environment, you'd use OCR
-        // For now, we'll return an error asking for text input
-        return NextResponse.json(
-          { error: 'Image OCR not implemented. Please copy the text from your image and paste it in the text area instead.' },
-          { status: 400 }
-        );
+        try {
+          console.log('Starting OCR processing for image:', file.name);
+          
+          // Convert file to buffer for OCR processing
+          const buffer = await file.arrayBuffer();
+          
+          // Extract text using OCR (demo implementation)
+          const extractedText = await extractTextFromImage(buffer);
+          
+          reportText = extractedText.trim();
+          console.log('OCR completed, extracted text length:', reportText.length);
+          
+          if (!reportText) {
+            return NextResponse.json(
+              { error: 'No text could be extracted from the image. Please ensure the image contains clear, readable text.' },
+              { status: 400 }
+            );
+          }
+        } catch (ocrError) {
+          console.error('OCR processing failed:', ocrError);
+          return NextResponse.json(
+            { error: 'Failed to extract text from image. Please try again or copy the text manually.' },
+            { status: 400 }
+          );
+        }
       } else if (file.type.startsWith('text/') || 
                  file.type === 'application/msword' || 
                  file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {

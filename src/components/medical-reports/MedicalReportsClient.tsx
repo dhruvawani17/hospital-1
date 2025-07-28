@@ -107,9 +107,9 @@ export default function MedicalReportsClient() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-background to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-4 sm:py-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <div className="flex items-center gap-4 mb-4">
             <Button variant="ghost" size="sm" asChild>
               <Link href="/">
@@ -118,27 +118,27 @@ export default function MedicalReportsClient() {
               </Link>
             </Button>
           </div>
-          <h1 className="text-4xl font-headline font-bold mb-2">Medical Report Analysis</h1>
-          <p className="text-lg text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-headline font-bold mb-2">Medical Report Analysis</h1>
+          <p className="text-base sm:text-lg text-muted-foreground">
             Upload your medical reports and get AI-powered insights and answers to your questions.
           </p>
         </div>
 
         {/* Progress Bar */}
-        <Card className="mb-8">
-          <CardContent className="pt-6">
+        <Card className="mb-6 sm:mb-8">
+          <CardContent className="pt-4 sm:pt-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Upload className={`h-5 w-5 ${currentStep === 'upload' ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className={`text-sm ${currentStep === 'upload' ? 'font-medium' : 'text-muted-foreground'}`}>Upload</span>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <Upload className={`h-4 w-4 sm:h-5 sm:w-5 ${currentStep === 'upload' ? 'text-primary' : 'text-muted-foreground'}`} />
+                <span className={`text-xs sm:text-sm ${currentStep === 'upload' ? 'font-medium' : 'text-muted-foreground'}`}>Upload</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Brain className={`h-5 w-5 ${currentStep === 'analyze' ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className={`text-sm ${currentStep === 'analyze' ? 'font-medium' : 'text-muted-foreground'}`}>Analyze</span>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <Brain className={`h-4 w-4 sm:h-5 sm:w-5 ${currentStep === 'analyze' ? 'text-primary' : 'text-muted-foreground'}`} />
+                <span className={`text-xs sm:text-sm ${currentStep === 'analyze' ? 'font-medium' : 'text-muted-foreground'}`}>Analyze</span>
               </div>
-              <div className="flex items-center gap-2">
-                <MessageSquare className={`h-5 w-5 ${currentStep === 'qa' ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className={`text-sm ${currentStep === 'qa' ? 'font-medium' : 'text-muted-foreground'}`}>Q&A</span>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <MessageSquare className={`h-4 w-4 sm:h-5 sm:w-5 ${currentStep === 'qa' ? 'text-primary' : 'text-muted-foreground'}`} />
+                <span className={`text-xs sm:text-sm ${currentStep === 'qa' ? 'font-medium' : 'text-muted-foreground'}`}>Q&A</span>
               </div>
             </div>
             <Progress value={getStepProgress()} className="h-2" />
@@ -214,8 +214,8 @@ export default function MedicalReportsClient() {
                 )}
               </div>
               
-              <div className="flex gap-4">
-                <Button onClick={handleAnalyze} disabled={isAnalyzing} className="flex-1">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <Button onClick={handleAnalyze} disabled={isAnalyzing} className="flex-1 h-12 sm:h-10">
                   {isAnalyzing ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -228,7 +228,7 @@ export default function MedicalReportsClient() {
                     </>
                   )}
                 </Button>
-                <Button variant="outline" onClick={resetAnalysis}>
+                <Button variant="outline" onClick={resetAnalysis} className="h-12 sm:h-10">
                   Start Over
                 </Button>
               </div>

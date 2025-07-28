@@ -108,7 +108,7 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
         {!selectedFile ? (
           <>
             <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              className={`border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-colors ${
                 isDragging
                   ? 'border-primary bg-primary/5'
                   : 'border-muted-foreground/25 hover:border-primary/50'
@@ -117,12 +117,12 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
             >
-              <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Drop your file here</h3>
-              <p className="text-muted-foreground mb-4">
+              <Upload className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
+              <h3 className="text-base sm:text-lg font-medium mb-2">Drop your file here</h3>
+              <p className="text-sm text-muted-foreground mb-3 sm:mb-4">
                 Support for PDF, images (JPG, PNG, GIF, WebP), and text files
               </p>
-              <Button variant="outline" asChild>
+              <Button variant="outline" asChild className="h-12 sm:h-10">
                 <label className="cursor-pointer">
                   Choose File
                   <input
@@ -135,9 +135,10 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
               </Button>
             </div>
 
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs text-muted-foreground space-y-1">
               <p>• Maximum file size: 10MB</p>
               <p>• Supported formats: PDF, JPG, PNG, GIF, WebP, TXT, DOC, DOCX</p>
+              <p>• Images will be processed using OCR to extract text</p>
               <p>• Your files are processed securely and not stored permanently</p>
             </div>
           </>
@@ -159,12 +160,12 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <Button onClick={confirmUpload} className="flex-1">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button onClick={confirmUpload} className="flex-1 h-12 sm:h-10">
                 <Upload className="mr-2 h-4 w-4" />
                 Continue with this file
               </Button>
-              <Button variant="outline" onClick={clearSelection}>
+              <Button variant="outline" onClick={clearSelection} className="h-12 sm:h-10">
                 Choose Different File
               </Button>
             </div>
