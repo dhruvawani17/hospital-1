@@ -75,12 +75,22 @@ export default function MedicalReportsClient() {
 
       if (!response.ok) {
         // Try to get the error message from the response
+        let errorMessage = `Analysis failed: ${response.statusText}`;
+        
         try {
           const errorData = await response.json();
-          throw new Error(errorData.error || `Analysis failed: ${response.statusText}`);
+          console.log('Server error response:', errorData);
+          // Use the detailed error message from the server
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
         } catch (jsonError) {
-          throw new Error(`Analysis failed: ${response.statusText}`);
+          console.log('Failed to parse error JSON:', jsonError);
+          // If we can't parse the JSON response, provide a generic error
+          errorMessage = `Analysis failed: ${response.statusText}. Please try again or use a different file format.`;
         }
+        
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
@@ -154,7 +164,9 @@ export default function MedicalReportsClient() {
         {error && (
           <Alert className="mb-6" variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription className="whitespace-pre-wrap">
+              {error}
+            </AlertDescription>
           </Alert>
         )}
 

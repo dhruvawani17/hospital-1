@@ -256,8 +256,8 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   console.log('Starting enhanced PDF text extraction...');
   
   try {
-    // Dynamically import pdf-parse to avoid build issues
-    const pdf = (await import('pdf-parse')).default;
+    // Import pdf-parse properly
+    const pdfParse = require('pdf-parse');
     const buffer = Buffer.from(pdfBuffer);
     
     // Enhanced PDF parsing with options for better text extraction
@@ -271,7 +271,7 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
     };
     
     console.log('Processing PDF with enhanced options...');
-    const data = await pdf(buffer, options);
+    const data = await pdfParse(buffer, options);
     
     console.log(`PDF processing complete. Pages: ${data.numpages}, Text length: ${data.text?.length || 0}`);
     
