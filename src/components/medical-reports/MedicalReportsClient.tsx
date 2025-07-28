@@ -44,8 +44,9 @@ export default function MedicalReportsClient() {
   const handleTextInput = useCallback((text: string) => {
     setReportText(text);
     setError(null);
-    // Removed auto-progression to analyze step
-    // User must click submit button instead
+    if (text.trim()) {
+      setCurrentStep('analyze');
+    }
   }, []);
 
   const handleAnalyze = async () => {
@@ -74,13 +75,7 @@ export default function MedicalReportsClient() {
       });
 
       if (!response.ok) {
-        // Try to get the error message from the response
-        try {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Analysis failed: ${response.statusText}`);
-        } catch (jsonError) {
-          throw new Error(`Analysis failed: ${response.statusText}`);
-        }
+        throw new Error(`Analysis failed: ${response.statusText}`);
       }
 
       const result = await response.json();
@@ -176,37 +171,17 @@ export default function MedicalReportsClient() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Textarea
-                      placeholder="Paste your medical report text here...
-
-Tips for better analysis:
-• Include all relevant lab values, test results, and measurements
-• Copy the complete report including normal ranges when available
-• Include any doctor's notes or recommendations
-• Ensure all text is clearly readable and complete"
-                      value={reportText}
-                      onChange={(e) => handleTextInput(e.target.value)}
-                      className="min-h-[200px] text-sm"
-                    />
-                    <div className="text-xs text-muted-foreground">
-                      💡 <strong>Pro tip:</strong> Review your text before submitting to ensure all important medical information is included and accurate.
-                    </div>
-                  </div>
+                  <Textarea
+                    placeholder="Paste your medical report text here..."
+                    value={reportText}
+                    onChange={(e) => handleTextInput(e.target.value)}
+                    className="min-h-[200px]"
+                  />
                   {reportText.trim() && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      Text entered ({reportText.length} characters) - Ready for analysis
+                      Text entered ({reportText.length} characters)
                     </div>
-                  )}
-                  {reportText.trim() && (
-                    <Button 
-                      onClick={() => setCurrentStep('analyze')} 
-                      className="w-full h-12 sm:h-10"
-                    >
-                      <Brain className="mr-2 h-4 w-4" />
-                      Submit Text for Analysis
-                    </Button>
                   )}
                 </div>
               </CardContent>

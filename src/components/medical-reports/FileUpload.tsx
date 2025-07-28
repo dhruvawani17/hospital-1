@@ -136,18 +136,10 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
             </div>
 
             <div className="text-xs text-muted-foreground space-y-1">
-              <p><strong>📋 File Requirements:</strong></p>
               <p>• Maximum file size: 10MB</p>
               <p>• Supported formats: PDF, JPG, PNG, GIF, WebP, TXT, DOC, DOCX</p>
-              <p></p>
-              <p><strong>📸 For Best OCR Results:</strong></p>
-              <p>• Use high-resolution, clear images (avoid blurry or dark photos)</p>
-              <p>• Ensure text is clearly visible and well-lit</p>
-              <p>• Crop images to focus on text content</p>
-              <p>• Hold camera directly above document (avoid angles)</p>
-              <p>• Use scanner apps for better quality when possible</p>
-              <p></p>
-              <p><strong>🔒 Privacy:</strong> Files are processed securely and not stored permanently</p>
+              <p>• Images will be processed using OCR to extract text</p>
+              <p>• Your files are processed securely and not stored permanently</p>
             </div>
           </>
         ) : (
