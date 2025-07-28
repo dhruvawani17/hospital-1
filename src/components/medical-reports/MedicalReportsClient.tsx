@@ -176,16 +176,27 @@ export default function MedicalReportsClient() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <Textarea
-                    placeholder="Paste your medical report text here..."
-                    value={reportText}
-                    onChange={(e) => handleTextInput(e.target.value)}
-                    className="min-h-[200px]"
-                  />
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder="Paste your medical report text here...
+
+Tips for better analysis:
+• Include all relevant lab values, test results, and measurements
+• Copy the complete report including normal ranges when available
+• Include any doctor's notes or recommendations
+• Ensure all text is clearly readable and complete"
+                      value={reportText}
+                      onChange={(e) => handleTextInput(e.target.value)}
+                      className="min-h-[200px] text-sm"
+                    />
+                    <div className="text-xs text-muted-foreground">
+                      💡 <strong>Pro tip:</strong> Review your text before submitting to ensure all important medical information is included and accurate.
+                    </div>
+                  </div>
                   {reportText.trim() && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
                       <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      Text entered ({reportText.length} characters)
+                      Text entered ({reportText.length} characters) - Ready for analysis
                     </div>
                   )}
                   {reportText.trim() && (
