@@ -1,33 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
+import Tesseract from 'tesseract.js';
 
-// Simple OCR simulation for demo purposes
-// In production, you would use a proper OCR service like Google Vision API, AWS Textract, etc.
+// Real OCR implementation using Tesseract.js
 async function extractTextFromImage(imageBuffer: ArrayBuffer): Promise<string> {
-  // This is a placeholder for actual OCR functionality
-  // In a real implementation, you would:
-  // 1. Use Google Vision API
-  // 2. Use AWS Textract
-  // 3. Use Azure Computer Vision
-  // 4. Use a server-side OCR library
+  console.log('Starting OCR processing with Tesseract.js');
   
-  console.log('Processing image for OCR (demo mode)');
-  
-  // For demo purposes, return some sample extracted text
-  const demoExtractedText = `MEDICAL LABORATORY REPORT
-Patient: John Doe
-Date: January 15, 2024
-
-LABORATORY RESULTS:
-Total Cholesterol: 240 mg/dL (High)
-LDL Cholesterol: 160 mg/dL (High)
-HDL Cholesterol: 35 mg/dL (Low)
-Blood Pressure: 140/90 mmHg
-Blood Glucose: 110 mg/dL (Normal)
-
-RECOMMENDATIONS:
-Diet modification and exercise recommended`;
-
-  return demoExtractedText;
+  try {
+    // Convert ArrayBuffer to Buffer for Node.js environment
+    const buffer = Buffer.from(imageBuffer);
+    
+    // Use Tesseract.js to extract text from image
+    const { data: { text } } = await Tesseract.recognize(buffer, 'eng', {
+      logger: m => console.log('OCR Progress:', m)
+    });
+    
+    console.log('OCR completed successfully, extracted text length:', text.length);
+    
+    // Clean up the extracted text
+    const cleanedText = text
+      .replace(/\n\s*\n/g, '\n') // Remove multiple consecutive newlines
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim();
+    
+    return cleanedText;
+  } catch (error) {
+    console.error('OCR processing failed:', error);
+    throw new Error('Failed to extract text from image using OCR');
+  }
 }
 
 // Mock analysis function for demo purposes when API key is not available

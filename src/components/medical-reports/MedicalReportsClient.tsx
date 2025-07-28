@@ -44,9 +44,8 @@ export default function MedicalReportsClient() {
   const handleTextInput = useCallback((text: string) => {
     setReportText(text);
     setError(null);
-    if (text.trim()) {
-      setCurrentStep('analyze');
-    }
+    // Removed auto-progression to analyze step
+    // User must click submit button instead
   }, []);
 
   const handleAnalyze = async () => {
@@ -182,6 +181,15 @@ export default function MedicalReportsClient() {
                       <CheckCircle2 className="h-4 w-4 text-green-500" />
                       Text entered ({reportText.length} characters)
                     </div>
+                  )}
+                  {reportText.trim() && (
+                    <Button 
+                      onClick={() => setCurrentStep('analyze')} 
+                      className="w-full h-12 sm:h-10"
+                    >
+                      <Brain className="mr-2 h-4 w-4" />
+                      Submit Text for Analysis
+                    </Button>
                   )}
                 </div>
               </CardContent>
