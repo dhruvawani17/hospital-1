@@ -44,21 +44,47 @@ const medicalAnalysisPrompt = ai.definePrompt({
 {{{reportText}}}
 
 **Instructions:**
-1. Provide a clear, comprehensive summary of the medical report in plain language that patients can understand
-2. Extract key findings, test results, abnormal values, diagnoses, recommendations, and important observations
-3. Explain medical terms in simple language when possible
-4. Focus on factual information from the report
-5. Do NOT provide medical advice, treatment recommendations, or diagnoses beyond what's stated in the report
-6. If concerning findings are mentioned, suggest consulting with healthcare providers
-7. Be empathetic and supportive in tone
+1. **Comprehensive Analysis**: Carefully analyze ALL sections of the medical report including:
+   - Patient demographics and test dates
+   - Laboratory values and their reference ranges
+   - Diagnostic imaging results
+   - Clinical observations and findings
+   - Healthcare provider recommendations
+   - Medication information if present
+
+2. **Clear Summary**: Provide a structured summary that includes:
+   - Overview of what tests/examinations were performed
+   - Key findings with their clinical significance
+   - Values that are outside normal ranges (specify if high, low, or borderline)
+   - Any diagnoses or conditions mentioned
+   - Treatment recommendations or follow-up instructions
+
+3. **Patient-Friendly Language**: 
+   - Explain medical terminology in simple terms
+   - Use percentages or analogies when helpful
+   - Avoid jargon while maintaining accuracy
+   - Be empathetic and supportive in tone
+
+4. **Structured Key Findings**: Extract specific findings such as:
+   - Abnormal lab values with context (e.g., "Cholesterol 245 mg/dL - High (normal <200)")
+   - Important measurements (blood pressure, glucose, etc.)
+   - Recommendations from healthcare providers
+   - Any urgent or concerning findings
+   - Follow-up requirements
+
+5. **Safety Guidelines**:
+   - Focus on factual information from the report
+   - Do NOT provide medical advice or treatment recommendations beyond what's stated
+   - If concerning findings are mentioned, emphasize consulting healthcare providers
+   - Always include appropriate medical disclaimers
 
 **IMPORTANT MEDICAL DISCLAIMERS:**
-- Always emphasize that this analysis is for informational purposes only
-- Stress the importance of consulting healthcare professionals for medical decisions
-- Do not provide specific medical advice or treatment recommendations
-- Focus on explaining what the report says rather than interpreting medical significance
+- This analysis is for informational and educational purposes only
+- Always consult with qualified healthcare professionals for medical decisions
+- Do not use this analysis as a substitute for professional medical advice
+- Contact your healthcare provider for questions about your results
 
-Please analyze this medical report and provide a summary with key findings.`,
+Please provide a comprehensive analysis that helps the patient understand their medical report while maintaining appropriate medical safety standards.`,
   config: {
     safetySettings: [
       { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
@@ -123,46 +149,91 @@ const medicalReportAnalysisFlow = ai.defineFlow(
         throw new Error('Failed to generate medical report analysis');
       }
 
-      // Parse the response to extract summary and key findings
+      // Parse the response to extract summary and key findings with better structure
       const responseText = llmResponse.text;
       
-      // Try to extract structured information from the response
+      // Enhanced parsing to extract structured information from the response
       let summary = '';
       let keyFindings: string[] = [];
       
-      // Simple parsing - in production, you might want more sophisticated parsing
-      const lines = responseText.split('\n').filter(line => line.trim());
-      
+      // Split response into sections for better parsing
+      const sections = responseText.split(/\n\s*\n/);
       let currentSection = '';
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.toLowerCase().includes('summary') || trimmed.toLowerCase().includes('overview')) {
-          currentSection = 'summary';
-          continue;
-        } else if (trimmed.toLowerCase().includes('key finding') || trimmed.toLowerCase().includes('finding')) {
-          currentSection = 'findings';
-          continue;
-        }
+      
+      for (const section of sections) {
+        const lines = section.split('\n').map(line => line.trim()).filter(line => line);
         
-        if (currentSection === 'summary' && trimmed && !trimmed.startsWith('-') && !trimmed.startsWith('•')) {
-          summary += (summary ? ' ' : '') + trimmed;
-        } else if (currentSection === 'findings' && (trimmed.startsWith('-') || trimmed.startsWith('•'))) {
-          keyFindings.push(trimmed.replace(/^[-•]\s*/, ''));
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const lowerLine = line.toLowerCase();
+          
+          // Identify section headers
+          if (lowerLine.includes('summary') || lowerLine.includes('overview')) {
+            currentSection = 'summary';
+            continue;
+          } else if (lowerLine.includes('key finding') || lowerLine.includes('findings') || 
+                     lowerLine.includes('important') || lowerLine.includes('results')) {
+            currentSection = 'findings';
+            continue;
+          } else if (lowerLine.includes('recommendation') || lowerLine.includes('follow-up')) {
+            currentSection = 'findings'; // Include recommendations in findings
+            continue;
+          }
+          
+          // Process content based on current section
+          if (currentSection === 'summary' && line && !line.startsWith('-') && !line.startsWith('•')) {
+            // Build summary from non-bullet content
+            summary += (summary ? ' ' : '') + line;
+          } else if (line.startsWith('-') || line.startsWith('•') || line.startsWith('*')) {
+            // Extract bullet points as findings
+            const finding = line.replace(/^[-•*]\s*/, '').trim();
+            if (finding && finding.length > 10) {
+              keyFindings.push(finding);
+            }
+          } else if (currentSection === 'findings' && line && !line.includes(':') && line.length > 15) {
+            // Extract non-bullet findings that seem important
+            keyFindings.push(line);
+          }
         }
       }
       
-      // If parsing fails, use the full response as summary
-      if (!summary) {
-        summary = responseText;
-      }
-      
-      // If no structured findings found, try to extract bullet points
-      if (keyFindings.length === 0) {
-        const bulletPoints = responseText.match(/[-•]\s*([^\n]+)/g);
-        if (bulletPoints) {
-          keyFindings = bulletPoints.map(point => point.replace(/^[-•]\s*/, ''));
+      // If structured parsing didn't work well, use fallback extraction
+      if (!summary || summary.length < 50) {
+        // Extract the first substantial paragraph as summary
+        const paragraphs = responseText.split(/\n\s*\n/).filter(p => p.trim().length > 50);
+        if (paragraphs.length > 0) {
+          summary = paragraphs[0].replace(/\n/g, ' ').trim();
         }
       }
+      
+      // Enhanced bullet point extraction
+      if (keyFindings.length < 3) {
+        const allBullets = responseText.match(/[-•*]\s*([^\n]+)/g);
+        if (allBullets) {
+          keyFindings = allBullets.map(bullet => bullet.replace(/^[-•*]\s*/, '').trim())
+                                 .filter(finding => finding.length > 10)
+                                 .slice(0, 10); // Limit to reasonable number
+        }
+      }
+      
+      // Look for specific medical findings patterns
+      const medicalPatterns = [
+        /(\w+(?:\s+\w+)*)\s*:\s*([0-9.]+\s*[a-zA-Z/%]+)\s*\([^)]*\)/g,
+        /(blood pressure|cholesterol|glucose|hemoglobin).*?(?:\d+[\/\-]?\d*|\b(?:high|low|normal|elevated|borderline)\b)/gi,
+        /recommendation.*?[:.]([^.]+)/gi
+      ];
+      
+      medicalPatterns.forEach(pattern => {
+        const matches = responseText.match(pattern);
+        if (matches) {
+          matches.forEach(match => {
+            const cleanMatch = match.trim();
+            if (cleanMatch.length > 15 && !keyFindings.some(f => f.includes(cleanMatch.substring(0, 20)))) {
+              keyFindings.push(cleanMatch);
+            }
+          });
+        }
+      });
 
       return {
         summary: summary || 'Medical report analysis completed. Please review the findings below.',
@@ -173,47 +244,127 @@ const medicalReportAnalysisFlow = ai.defineFlow(
       // Provide a fallback response when API is not available (e.g., missing API key)
       console.warn('AI analysis failed, providing fallback response:', error);
       
-      // Extract basic information from the report text for a mock analysis
+      // Extract basic information from the report text for a more sophisticated mock analysis
       const reportText = input.reportText.toLowerCase();
+      const originalText = input.reportText;
       const mockFindings: string[] = [];
       let mockSummary = '';
       
-      // Basic pattern matching for common medical terms
+      // Enhanced pattern matching for medical terms and values
+      const labResults: string[] = [];
+      const recommendations: string[] = [];
+      const abnormalFindings: string[] = [];
+      
+      // Extract numeric values with units (lab results)
+      const labPatterns = [
+        /(?:cholesterol|ldl|hdl|triglycerides?).*?(\d+(?:\.\d+)?)\s*(mg\/dl|mmol\/l)/gi,
+        /(?:glucose|blood sugar).*?(\d+(?:\.\d+)?)\s*(mg\/dl|mmol\/l)/gi,
+        /(?:blood pressure|bp).*?(\d+\/\d+)\s*mmhg/gi,
+        /(?:hemoglobin|hgb).*?(\d+(?:\.\d+)?)\s*(g\/dl)/gi,
+        /(?:creatinine).*?(\d+(?:\.\d+)?)\s*(mg\/dl)/gi
+      ];
+      
+      labPatterns.forEach(pattern => {
+        const matches = [...originalText.matchAll(pattern)];
+        matches.forEach(match => {
+          labResults.push(match[0].trim());
+        });
+      });
+      
+      // Extract recommendations
+      const recPatterns = [
+        /recommend(?:ation|s)?[:\s]([^.]+)/gi,
+        /follow[-\s]?up[:\s]([^.]+)/gi,
+        /advise[:\s]([^.]+)/gi
+      ];
+      
+      recPatterns.forEach(pattern => {
+        const matches = [...originalText.matchAll(pattern)];
+        matches.forEach(match => {
+          const rec = match[1].trim();
+          if (rec.length > 5 && rec.length < 200) {
+            recommendations.push(rec);
+          }
+        });
+      });
+      
+      // Analyze content for specific medical conditions
       if (reportText.includes('cholesterol')) {
-        if (reportText.includes('borderline') || reportText.includes('high')) {
-          mockFindings.push('Cholesterol levels are elevated and may require dietary modifications');
+        if (reportText.includes('high') || reportText.includes('elevated') || /cholesterol.*?2[4-9]\d|[3-9]\d\d/i.test(originalText)) {
+          abnormalFindings.push('Elevated cholesterol levels detected - may require dietary modifications and lifestyle changes');
+          mockFindings.push('Lipid panel shows cholesterol values above recommended ranges');
+        } else if (reportText.includes('borderline')) {
+          abnormalFindings.push('Borderline cholesterol levels - monitoring and lifestyle modifications recommended');
+        } else {
+          mockFindings.push('Cholesterol levels documented in lipid profile');
         }
-        mockFindings.push('Lipid profile shows cholesterol measurements outside normal ranges');
       }
       
       if (reportText.includes('blood pressure') || reportText.includes('mmhg')) {
-        mockFindings.push('Blood pressure readings noted in the report');
+        if (/1[4-9]\d\/[89]\d|1[5-9]\d\/9\d/i.test(originalText)) {
+          abnormalFindings.push('Blood pressure readings indicate hypertension - medical evaluation recommended');
+        } else {
+          mockFindings.push('Blood pressure measurements recorded');
+        }
       }
       
       if (reportText.includes('glucose') || reportText.includes('blood sugar')) {
-        mockFindings.push('Blood glucose levels measured and documented');
+        if (/glucose.*?1[1-9]\d|[2-9]\d\d/i.test(originalText)) {
+          abnormalFindings.push('Elevated glucose levels - may indicate diabetes risk or blood sugar management issues');
+        } else {
+          mockFindings.push('Blood glucose levels within documented ranges');
+        }
       }
       
-      if (reportText.includes('hemoglobin') || reportText.includes('blood count')) {
-        mockFindings.push('Complete blood count (CBC) results available');
+      if (reportText.includes('hemoglobin') || reportText.includes('blood count') || reportText.includes('cbc')) {
+        mockFindings.push('Complete blood count (CBC) results available showing blood cell measurements');
       }
       
-      if (reportText.includes('recommendation')) {
-        mockFindings.push('Healthcare provider recommendations included in report');
+      if (reportText.includes('kidney') || reportText.includes('creatinine') || reportText.includes('bun')) {
+        mockFindings.push('Kidney function tests documented');
       }
       
-      // Generate a basic summary
-      if (reportText.includes('normal') && reportText.includes('recommendation')) {
-        mockSummary = 'This medical report contains laboratory test results with some values in normal ranges and others requiring attention. The healthcare provider has included specific recommendations for follow-up care and lifestyle modifications.';
+      if (reportText.includes('liver') || reportText.includes('alt') || reportText.includes('ast')) {
+        mockFindings.push('Liver function test results included');
+      }
+      
+      // Include extracted lab results
+      if (labResults.length > 0) {
+        mockFindings.push(`Laboratory values documented: ${labResults.slice(0, 3).join(', ')}`);
+      }
+      
+      // Include recommendations
+      if (recommendations.length > 0) {
+        recommendations.slice(0, 2).forEach(rec => {
+          mockFindings.push(`Healthcare provider recommendation: ${rec}`);
+        });
+      }
+      
+      // Include abnormal findings
+      abnormalFindings.forEach(finding => {
+        mockFindings.push(finding);
+      });
+      
+      // Generate a comprehensive summary based on content analysis
+      const hasAbnormal = abnormalFindings.length > 0;
+      const hasRecommendations = recommendations.length > 0;
+      const hasLabResults = labResults.length > 0;
+      
+      if (hasAbnormal && hasRecommendations) {
+        mockSummary = `This medical report contains comprehensive laboratory results with some values outside normal ranges requiring attention. The healthcare provider has included specific recommendations for follow-up care, lifestyle modifications, and potential treatment options. Key areas of focus include ${hasLabResults ? 'measured lab values' : 'clinical findings'} that warrant monitoring and possible intervention.`;
+      } else if (hasLabResults) {
+        mockSummary = `This medical report documents various laboratory test results and clinical measurements. The report includes standard medical assessments with documented values and ranges. Regular monitoring and consultation with healthcare providers is recommended for optimal health management.`;
+      } else if (hasRecommendations) {
+        mockSummary = `This medical report contains clinical observations and healthcare provider recommendations for ongoing care. The document outlines specific guidance for health management and follow-up procedures.`;
       } else {
-        mockSummary = 'This medical report contains various test results and clinical findings. Please consult with your healthcare provider to discuss the results and any necessary follow-up actions.';
+        mockSummary = `This medical report contains clinical information and test results. The document provides medical data that should be reviewed with a healthcare provider for proper interpretation and guidance on any necessary follow-up actions.`;
       }
       
       // Add standard disclaimer
-      mockFindings.push('This is a demo analysis. For accurate medical interpretation, please consult your healthcare provider');
+      mockFindings.push('⚠️ This analysis is provided in demonstration mode - for accurate medical interpretation, please consult your healthcare provider');
       
       return {
-        summary: mockSummary || 'Medical report processed successfully. This is a demonstration mode - please consult your healthcare provider for accurate medical interpretation.',
+        summary: mockSummary,
         keyFindings: mockFindings.length > 0 ? mockFindings : [
           'Medical report contains test results and clinical information',
           'Healthcare provider consultation recommended for proper interpretation',
@@ -248,7 +399,6 @@ const medicalQuestionFlow = ai.defineFlow(
       console.warn('AI Q&A failed, providing fallback response:', error);
       
       const question = input.question.toLowerCase();
-      const reportText = input.reportText.toLowerCase();
       
       let fallbackAnswer = '';
       

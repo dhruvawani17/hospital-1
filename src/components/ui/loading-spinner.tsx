@@ -65,14 +65,34 @@ interface ProcessingLoaderProps {
 export function ProcessingLoader({ stage, fileName, progress, className }: ProcessingLoaderProps) {
   const stageMessages = {
     uploading: 'Uploading file...',
-    processing: 'Extracting text...',
-    analyzing: 'Analyzing report...'
+    processing: fileName?.toLowerCase().includes('.pdf') ? 'Extracting PDF content with enhanced parser...' : 'Processing image with optimized OCR...',
+    analyzing: 'Analyzing medical report with advanced AI...'
+  };
+
+  const stageDescriptions = {
+    uploading: 'Securely transferring your file',
+    processing: fileName?.toLowerCase().includes('.pdf') ? 
+      'Using advanced PDF parsing for accurate text extraction' : 
+      'Applying optimized OCR techniques for faster image processing',
+    analyzing: 'AI is carefully analyzing your medical data for comprehensive insights'
   };
 
   const stageIcons = {
     uploading: '📤',
-    processing: '🔍',
+    processing: fileName?.toLowerCase().includes('.pdf') ? '📄' : '🔍',
     analyzing: '🧠'
+  };
+
+  // Simulated progress for better UX
+  const getSimulatedProgress = () => {
+    if (typeof progress === 'number') return progress;
+    
+    switch (stage) {
+      case 'uploading': return 25;
+      case 'processing': return 65;
+      case 'analyzing': return 90;
+      default: return 0;
+    }
   };
 
   return (
@@ -94,21 +114,51 @@ export function ProcessingLoader({ stage, fileName, progress, className }: Proce
       </div>
 
       {/* Progress info */}
-      <div className="text-center space-y-2">
+      <div className="text-center space-y-2 max-w-md">
         <div className="text-lg font-medium text-foreground">
           {stageMessages[stage]}
         </div>
+        <div className="text-sm text-muted-foreground">
+          {stageDescriptions[stage]}
+        </div>
         {fileName && (
-          <div className="text-sm text-muted-foreground">
-            {fileName}
+          <div className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full inline-block">
+            📁 {fileName}
           </div>
         )}
-        {typeof progress === 'number' && (
-          <div className="w-64 bg-muted rounded-full h-2">
-            <div 
-              className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
-              style={{ width: `${progress}%` }}
-            />
+        
+        {/* Enhanced progress bar */}
+        <div className="w-64 bg-muted rounded-full h-3 overflow-hidden">
+          <div 
+            className="bg-gradient-to-r from-primary to-primary/80 h-3 rounded-full transition-all duration-500 ease-out relative"
+            style={{ width: `${getSimulatedProgress()}%` }}
+          >
+            <div className="absolute inset-0 bg-white/20 animate-pulse" />
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {getSimulatedProgress()}% complete
+        </div>
+      </div>
+
+      {/* Processing tips */}
+      <div className="text-xs text-muted-foreground text-center max-w-sm">
+        {stage === 'processing' && fileName?.toLowerCase().includes('.pdf') && (
+          <div className="space-y-1">
+            <div>✨ Enhanced PDF parsing for better text extraction</div>
+            <div>🔧 Improved accuracy for medical documents</div>
+          </div>
+        )}
+        {stage === 'processing' && fileName && !fileName.toLowerCase().includes('.pdf') && (
+          <div className="space-y-1">
+            <div>🚀 Optimized OCR processing for faster results</div>
+            <div>🎯 Specialized for medical report text recognition</div>
+          </div>
+        )}
+        {stage === 'analyzing' && (
+          <div className="space-y-1">
+            <div>🔍 AI analyzing medical terminology and values</div>
+            <div>📊 Generating comprehensive insights and recommendations</div>
           </div>
         )}
       </div>
