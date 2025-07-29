@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ProcessingLoader } from '@/components/ui/loading-spinner';
 import { FileUpload } from './FileUpload';
 import { ReportSummary } from './ReportSummary';
 import { QuestionAnswer } from './QuestionAnswer';
@@ -27,11 +28,14 @@ interface AnalysisResult {
   reportText: string;
 }
 
+type ProcessingStage = 'uploading' | 'processing' | 'analyzing';
+
 export default function MedicalReportsClient() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [reportText, setReportText] = useState('');
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [processingStage, setProcessingStage] = useState<ProcessingStage>('uploading');
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<'upload' | 'analyze' | 'qa'>('upload');
 
@@ -44,9 +48,8 @@ export default function MedicalReportsClient() {
   const handleTextInput = useCallback((text: string) => {
     setReportText(text);
     setError(null);
-    if (text.trim()) {
-      setCurrentStep('analyze');
-    }
+    // Note: Removed auto-advance to analyze step for better UX
+    // Users now need to explicitly click submit
   }, []);
 
   const handleAnalyze = async () => {
@@ -59,10 +62,21 @@ export default function MedicalReportsClient() {
     setError(null);
 
     try {
+      // Set initial processing stage
+      if (uploadedFile) {
+        setProcessingStage('uploading');
+      } else {
+        setProcessingStage('analyzing');
+      }
+
       const formData = new FormData();
       
       if (uploadedFile) {
         formData.append('file', uploadedFile);
+        
+        // Update progress stages for file uploads
+        setTimeout(() => setProcessingStage('processing'), 500);
+        setTimeout(() => setProcessingStage('analyzing'), 1500);
       }
       
       if (reportText.trim()) {
@@ -75,7 +89,8 @@ export default function MedicalReportsClient() {
       });
 
       if (!response.ok) {
-        throw new Error(`Analysis failed: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Analysis failed: ${response.statusText}`);
       }
 
       const result = await response.json();
@@ -178,9 +193,18 @@ export default function MedicalReportsClient() {
                     className="min-h-[200px]"
                   />
                   {reportText.trim() && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      Text entered ({reportText.length} characters)
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        Text entered ({reportText.length} characters)
+                      </div>
+                      <Button 
+                        onClick={() => setCurrentStep('analyze')} 
+                        className="w-full"
+                      >
+                        <Brain className="mr-2 h-4 w-4" />
+                        Continue to Analysis
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -191,49 +215,54 @@ export default function MedicalReportsClient() {
 
         {/* Step 2: Analyze */}
         {currentStep === 'analyze' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5" />
-                Ready to Analyze
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                {uploadedFile && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <FileText className="h-4 w-4" />
-                    <span>File: {uploadedFile.name}</span>
+          <>
+            {isAnalyzing ? (
+              <Card>
+                <CardContent className="p-0">
+                  <ProcessingLoader 
+                    stage={processingStage}
+                    fileName={uploadedFile?.name}
+                    className="min-h-[300px]"
+                  />
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Brain className="h-5 w-5" />
+                    Ready to Analyze
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    {uploadedFile && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <FileText className="h-4 w-4" />
+                        <span>File: {uploadedFile.name}</span>
+                      </div>
+                    )}
+                    {reportText && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <FileText className="h-4 w-4" />
+                        <span>Text: {reportText.length} characters</span>
+                      </div>
+                    )}
                   </div>
-                )}
-                {reportText && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <FileText className="h-4 w-4" />
-                    <span>Text: {reportText.length} characters</span>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <Button onClick={handleAnalyze} disabled={isAnalyzing} className="flex-1 h-12 sm:h-10">
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
+                  
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                    <Button onClick={handleAnalyze} disabled={isAnalyzing} className="flex-1 h-12 sm:h-10">
                       <Brain className="mr-2 h-4 w-4" />
                       Analyze Report
-                    </>
-                  )}
-                </Button>
-                <Button variant="outline" onClick={resetAnalysis} className="h-12 sm:h-10">
-                  Start Over
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                    </Button>
+                    <Button variant="outline" onClick={resetAnalysis} className="h-12 sm:h-10">
+                      Start Over
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
 
         {/* Step 3: Results and Q&A */}
