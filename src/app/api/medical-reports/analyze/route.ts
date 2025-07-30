@@ -1,35 +1,125 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Extract text from PDF using pdf-parse
+// Extract text from PDF using pdf-parse with enhanced error handling
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
+  let mainError: Error | null = null;
+  
   try {
     console.log('Starting PDF text extraction using pdf-parse');
     
     // Use the pdf-parse library for proper PDF text extraction
-    const pdfParse = await import('pdf-parse');
+    const pdfParse = require('pdf-parse');
     const buffer = Buffer.from(pdfBuffer);
     
-    // Parse the PDF and extract text
-    const pdfData = await pdfParse.default(buffer);
+    console.log('PDF buffer size:', buffer.length, 'bytes');
     
-    if (!pdfData.text || pdfData.text.trim().length < 10) {
-      throw new Error('No readable text found in PDF. The PDF might be image-based or encrypted.');
+    // Parse the PDF and extract text with options for better compatibility
+    const options = {
+      // Normalize whitespace
+      normalizeWhitespace: false,
+      // Don't use external fonts
+      useExternalCMaps: false,
+      // Continue on errors to extract what we can
+      stopAtErrors: false
+    };
+    
+    const pdfData = await pdfParse(buffer, options);
+    
+    console.log('PDF metadata:', {
+      numpages: pdfData.numpages,
+      numrender: pdfData.numrender,
+      info: pdfData.info,
+      textLength: pdfData.text ? pdfData.text.length : 0
+    });
+    
+    if (!pdfData.text) {
+      throw new Error('No text content found in PDF. This might be a scanned document - try uploading it as an image for OCR processing.');
     }
     
     const extractedText = pdfData.text.trim();
-    console.log('PDF parsing completed successfully, extracted text length:', extractedText.length);
     
-    return extractedText;
-  } catch (error) {
-    console.error('PDF parsing error:', error);
-    
-    // If pdf-parse fails, provide helpful error message
-    if (error instanceof Error && error.message.includes('No readable text found')) {
-      throw new Error('No readable text found in PDF. This might be a scanned document - try uploading it as an image for OCR processing.');
+    // Lower the threshold from 10 to 3 characters to be more permissive
+    if (extractedText.length < 3) {
+      throw new Error('Very little readable text found in PDF (less than 3 characters). This might be a scanned document - try uploading it as an image for OCR processing.');
     }
     
-    throw new Error('Failed to extract text from PDF. Please ensure the PDF is not corrupted or password-protected, or try uploading as an image.');
+    // Basic text cleanup - remove excessive whitespace but preserve structure
+    const cleanedText = extractedText
+      .replace(/\s+/g, ' ')
+      .replace(/\n\s*\n/g, '\n')
+      .trim();
+    
+    console.log('PDF parsing completed successfully, extracted text length:', cleanedText.length);
+    
+    return cleanedText;
+  } catch (error) {
+    console.error('pdf-parse failed:', error);
+    mainError = error instanceof Error ? error : new Error(String(error));
   }
+  
+  // Fallback: Try simple text extraction for text-based PDFs
+  try {
+    console.log('Attempting fallback text extraction method...');
+    const buffer = Buffer.from(pdfBuffer);
+    
+    // Convert buffer to string and look for readable text patterns
+    const textContent = buffer.toString('binary');
+    
+    // Extract text between PDF text operators
+    const textMatches = textContent.match(/\(([^)]+)\)/g) || [];
+    const extractedParts = textMatches
+      .map(match => match.slice(1, -1)) // Remove parentheses
+      .filter(text => text.length > 1 && /[a-zA-Z]/.test(text))
+      .map(text => text.replace(/[^\x20-\x7E]/g, ' ').trim())
+      .filter(text => text.length > 0);
+    
+    if (extractedParts.length === 0) {
+      throw new Error('No readable text found with fallback method');
+    }
+    
+    const fallbackText = extractedParts.join(' ').trim();
+    
+    if (fallbackText.length < 10) {
+      throw new Error('Insufficient text extracted with fallback method');
+    }
+    
+    console.log('Fallback extraction successful, text length:', fallbackText.length);
+    return fallbackText;
+    
+  } catch (fallbackError) {
+    console.error('Fallback extraction also failed:', fallbackError);
+  }
+  
+  // If both methods fail, provide helpful error message based on the main error
+  if (mainError) {
+    if (mainError.message.includes('No text content found') || 
+        mainError.message.includes('Very little readable text found') ||
+        mainError.message.includes('scanned document')) {
+      throw mainError;
+    }
+    
+    // Handle common pdf-parse errors with specific guidance
+    if (mainError.message.toLowerCase().includes('invalid pdf') || 
+        mainError.message.toLowerCase().includes('bad xref') ||
+        mainError.message.toLowerCase().includes('corrupted')) {
+      throw new Error('PDF file appears to be corrupted or has an unsupported format. Please try: 1) Re-saving the PDF from the original source, 2) Converting it to a different PDF format, or 3) Uploading as an image for OCR processing.');
+    }
+    
+    if (mainError.message.toLowerCase().includes('password') || 
+        mainError.message.toLowerCase().includes('encrypted')) {
+      throw new Error('PDF appears to be password-protected or encrypted. Please unlock the PDF first or try uploading as an image.');
+    }
+    
+    if (mainError.message.toLowerCase().includes('not found') ||
+        mainError.message.toLowerCase().includes('cannot read')) {
+      throw new Error('Unable to read PDF file. Please ensure the file is not corrupted and try again.');
+    }
+    
+    // For other pdf-parse specific errors, suggest alternatives
+    throw new Error(`PDF processing failed: ${mainError.message}. Try: 1) Converting the PDF to text manually, 2) Uploading as an image for OCR processing, or 3) Using a different PDF file.`);
+  }
+  
+  throw new Error('Failed to extract text from PDF. Please ensure the PDF is not corrupted or password-protected, or try uploading as an image.');
 }
 
 // Extract text from image using OCR
