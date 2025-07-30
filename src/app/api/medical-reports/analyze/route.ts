@@ -3,94 +3,97 @@ import { NextRequest, NextResponse } from 'next/server';
 // Extract text from PDF using pdf-parse
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    // Try to use text extraction as a fallback if pdf-parse has issues
+    console.log('Starting PDF text extraction using pdf-parse');
+    
+    // Use the pdf-parse library for proper PDF text extraction
+    const pdfParse = await import('pdf-parse');
     const buffer = Buffer.from(pdfBuffer);
     
-    // For now, let's try a simple buffer to string conversion for text-based PDFs
-    // This works for PDFs that store text as readable characters
-    const textContent = buffer.toString('utf8');
+    // Parse the PDF and extract text
+    const pdfData = await pdfParse.default(buffer);
     
-    // Basic text extraction - look for readable content
-    const lines = textContent.split('\n')
-      .map(line => line.replace(/[^\x20-\x7E]/g, ' ').trim())
-      .filter(line => line.length > 2 && /[a-zA-Z]/.test(line))
-      .slice(0, 100); // Limit to first 100 lines
-    
-    const extractedText = lines.join('\n').trim();
-    
-    if (extractedText.length < 50) {
-      throw new Error('Insufficient readable text found in PDF');
+    if (!pdfData.text || pdfData.text.trim().length < 10) {
+      throw new Error('No readable text found in PDF. The PDF might be image-based or encrypted.');
     }
+    
+    const extractedText = pdfData.text.trim();
+    console.log('PDF parsing completed successfully, extracted text length:', extractedText.length);
     
     return extractedText;
   } catch (error) {
     console.error('PDF parsing error:', error);
-    throw new Error('Failed to extract text from PDF. Please ensure the PDF contains readable text or try uploading as an image.');
+    
+    // If pdf-parse fails, provide helpful error message
+    if (error instanceof Error && error.message.includes('No readable text found')) {
+      throw new Error('No readable text found in PDF. This might be a scanned document - try uploading it as an image for OCR processing.');
+    }
+    
+    throw new Error('Failed to extract text from PDF. Please ensure the PDF is not corrupted or password-protected, or try uploading as an image.');
   }
 }
 
-// Extract text from image using OCR with fallback for demo
+// Extract text from image using OCR
 async function extractTextFromImage(imageBuffer: ArrayBuffer): Promise<string> {
   try {
     console.log('Starting OCR processing with Tesseract.js');
     
-    // Try to use Tesseract.js but with better error handling
-    try {
-      const { createWorker } = await import('tesseract.js');
-      
-      // Try different worker configurations for Next.js compatibility
-      let worker;
-      try {
-        worker = await createWorker({
-          logger: () => {}, // Disable logging for cleaner output
-          cachePath: './node_modules/tesseract.js/src/tesseract-core'
-        });
-        
-        await worker.loadLanguage('eng');
-        await worker.initialize('eng');
-        
-        const { data: { text } } = await worker.recognize(Buffer.from(imageBuffer));
-        await worker.terminate();
-        
-        if (text && text.trim().length > 10) {
-          console.log('OCR completed successfully with real Tesseract');
-          return text.trim();
+    const { createWorker } = await import('tesseract.js');
+    
+    // Create worker with simplified configuration for better reliability
+    const worker = await createWorker('eng', 1, {
+      logger: (m: any) => {
+        // Only log progress for debugging if needed
+        if (m.status === 'recognizing text') {
+          console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
         }
-      } catch (workerError) {
-        console.log('Tesseract worker failed with configuration error:', workerError.code);
-        if (worker) await worker.terminate();
+      },
+    });
+    
+    try {
+      // Convert ArrayBuffer to Buffer for Tesseract
+      const buffer = Buffer.from(imageBuffer);
+      
+      // Perform OCR with optimized settings for medical documents
+      const { data: { text } } = await worker.recognize(buffer, {
+        rectangles: undefined, // Process entire image
+      });
+      
+      await worker.terminate();
+      
+      // Validate extracted text
+      if (!text || text.trim().length < 10) {
+        throw new Error('Insufficient readable text found in image. Please ensure the image is clear and contains readable text.');
       }
-    } catch (importError) {
-      console.log('Tesseract import failed:', importError.message);
+      
+      const cleanedText = text.trim();
+      console.log('OCR completed successfully, extracted text length:', cleanedText.length);
+      
+      return cleanedText;
+      
+    } catch (processingError) {
+      await worker.terminate();
+      throw processingError;
     }
     
-    // Fallback: Use demo text extraction for development/demo
-    console.log('Using fallback demo OCR extraction');
-    
-    // Generate realistic extracted text based on medical report patterns
-    const demoText = `LABORATORY REPORT
-Patient: Jane Smith
-Date: July 28, 2025
-
-Blood Test Results:
-Total Cholesterol: 245 mg/dL (High)
-LDL Cholesterol: 165 mg/dL (High)
-HDL Cholesterol: 42 mg/dL (Low)
-Blood Glucose: 98 mg/dL (Normal)
-Blood Pressure: 142/88 mmHg (Elevated)
-
-Recommendations:
-- Dietary modifications
-- Regular exercise
-- Follow-up in 3 months
-
-Note: This text was extracted using demo OCR. For production use, ensure proper Tesseract.js configuration.`;
-    
-    return demoText;
-    
   } catch (error) {
-    console.error('OCR processing failed completely:', error);
-    throw new Error('Failed to extract text from image. Please ensure the image contains clear, readable text or try uploading as text/PDF.');
+    console.error('OCR processing failed:', error);
+    
+    // Provide specific error messages based on common issues
+    if (error instanceof Error) {
+      if (error.message.includes('Insufficient readable text')) {
+        throw error; // Re-throw specific validation error
+      }
+      
+      if (error.message.includes('Network') || error.message.includes('fetch')) {
+        throw new Error('OCR processing failed due to network issues. Please check your connection and try again.');
+      }
+      
+      if (error.message.includes('Memory') || error.message.includes('allocation')) {
+        throw new Error('Image is too large for processing. Please try with a smaller image (max 10MB) or convert to PDF.');
+      }
+    }
+    
+    throw new Error('Failed to extract text from image. Please ensure the image contains clear, readable text, or try uploading as PDF or text.');
   }
 }
 
