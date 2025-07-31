@@ -1,22 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Enhanced PDF processing with OpenAI Vision fallback for image-based PDFs
-async function processPDFWithAI(pdfBuffer: ArrayBuffer): Promise<string> {
+// Alternative PDF processing using OpenAI Vision for image-based PDFs
+async function convertPDFToImageAnalysis(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    console.log('Attempting OpenAI Vision analysis for PDF document');
+    console.log('Processing PDF with AI Vision (attempting direct PDF analysis)...');
     
-    // For PDF to image conversion, we'd need additional libraries
-    // For now, we'll handle this as a limitation and provide clear guidance
-    throw new Error('PDF Vision analysis requires additional setup. Please try extracting text manually or converting PDF pages to images first.');
+    // Convert PDF buffer to base64 for OpenAI analysis
+    const base64PDF = Buffer.from(pdfBuffer).toString('base64');
+    
+    const { openai } = await import('@/ai/openai');
+    
+    // Try to process PDF directly with OpenAI Vision
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are a specialized medical document text extractor. Extract ALL visible text from medical documents, reports, or lab results.
+
+CRITICAL INSTRUCTIONS:
+- Extract complete text content exactly as it appears in the document
+- Include ALL patient information, test results, numerical values, dates, and medical notes
+- Preserve the original structure and order of information
+- Pay special attention to medical terminology, units (mg/dL, mmHg, etc.), and numerical values
+- If text is unclear, indicate with [unclear] but extract what you can
+- Do not add interpretation or analysis - only extract visible text
+- Format as clean, readable text preserving document structure
+- Focus on accuracy and completeness for medical report analysis
+
+Extract all text content from this medical document:`
+        },
+        {
+          role: "user", 
+          content: [
+            {
+              type: "text",
+              text: "Extract all readable text from this PDF medical document. Focus on accuracy and completeness:"
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:application/pdf;base64,${base64PDF}`,
+                detail: "high"
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 3000,
+      temperature: 0.1
+    });
+
+    const extractedText = response.choices[0]?.message?.content;
+    
+    if (extractedText && extractedText.trim().length > 15) {
+      console.log('OpenAI PDF Vision analysis successful, text length:', extractedText.length);
+      return extractedText.trim();
+    } else {
+      throw new Error('OpenAI Vision did not extract sufficient text from PDF');
+    }
     
   } catch (error) {
-    console.error('PDF Vision processing failed:', error);
+    console.error('PDF Vision analysis failed:', error);
     throw error;
   }
 }
-// Extract text from PDF using pdf-parse
+// Enhanced PDF text extraction with improved filtering and image conversion
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
-  console.log('Starting comprehensive PDF text extraction');
+  console.log('Starting enhanced PDF text extraction');
   
   // First try using pdf-parse library
   try {
@@ -29,47 +80,105 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
     const extractedText = pdfData.text?.trim();
     
     if (extractedText && extractedText.length > 20) {
-      console.log('PDF parsing successful with pdf-parse, extracted text length:', extractedText.length);
-      return extractedText;
+      // Validate that we have actual readable text, not binary data
+      const readableRatio = (extractedText.match(/[a-zA-Z0-9\s]/g) || []).length / extractedText.length;
+      
+      if (readableRatio > 0.7) { // At least 70% readable characters
+        console.log('PDF parsing successful with pdf-parse, extracted text length:', extractedText.length);
+        return extractedText;
+      } else {
+        console.log('pdf-parse returned mostly binary data, trying image conversion...');
+        throw new Error('pdf-parse returned mostly binary/encoded data');
+      }
     } else {
-      console.log('pdf-parse returned insufficient text, trying fallback method');
+      console.log('pdf-parse returned insufficient text, trying image conversion...');
       throw new Error('pdf-parse returned insufficient text');
     }
     
   } catch (pdfParseError: any) {
-    console.log('pdf-parse failed, trying basic text extraction...', pdfParseError?.message);
+    console.log('pdf-parse failed, trying PDF-to-image conversion...', pdfParseError?.message);
     
-    // Fallback: Try basic text extraction for simple PDFs
+    // Try PDF-to-image analysis for image-based PDFs
     try {
-      const buffer = Buffer.from(pdfBuffer);
-      const textContent = buffer.toString('utf8');
+      return await convertPDFToImageAnalysis(pdfBuffer);
+    } catch (imageAnalysisError) {
+      console.log('PDF Vision analysis failed, trying improved text extraction...', imageAnalysisError);
       
-      // Look for readable content patterns
-      const lines = textContent.split('\n')
-        .map(line => line.replace(/[^\x20-\x7E]/g, ' ').trim())
-        .filter(line => line.length > 2 && /[a-zA-Z]/.test(line))
-        .slice(0, 200); // Increased limit for better extraction
-      
-      const extractedText = lines.join('\n').trim();
-      
-      if (extractedText.length > 50) {
-        console.log('Basic PDF extraction successful, text length:', extractedText.length);
-        return extractedText;
-      } else {
-        throw new Error('Basic text extraction insufficient');
+      // Enhanced fallback: Try improved text extraction that filters binary data
+      try {
+        const buffer = Buffer.from(pdfBuffer);
+        const textContent = buffer.toString('utf8');
+        
+        // Enhanced filtering to avoid binary data and PDF metadata
+        const lines = textContent.split(/[\r\n]+/)
+          .map(line => {
+            // Remove common PDF metadata and binary indicators
+            if (line.includes('/Type') || 
+                line.includes('/Subtype') || 
+                line.includes('/Filter') ||
+                line.includes('stream') ||
+                line.includes('endstream') ||
+                line.includes('obj') ||
+                line.includes('endobj') ||
+                line.includes('PDF-') ||
+                line.includes('JFIF') ||
+                line.includes('DCTDecode') ||
+                line.includes('/Length') ||
+                line.includes('/Width') ||
+                line.includes('/Height') ||
+                line.includes('/ColorSpace') ||
+                line.includes('/BitsPerComponent') ||
+                line.includes('/Interpolate') ||
+                line.includes('endstream') ||
+                line.startsWith('/') ||
+                line.match(/^[0-9\s]+$/) ||  // Pure number lines
+                line.match(/^[^a-zA-Z]*$/) || // Lines with no letters
+                line.length > 100) {  // Very long lines likely to be binary
+              return '';
+            }
+            
+            // Clean up the line and check if it's readable
+            const cleaned = line.replace(/[^\x20-\x7E]/g, ' ').trim();
+            
+            // Filter out lines that are mostly non-alphabetic or very short
+            const alphaRatio = (cleaned.match(/[a-zA-Z]/g) || []).length / Math.max(cleaned.length, 1);
+            const hasColon = cleaned.includes(':');
+            const hasNumbers = /\d/.test(cleaned);
+            
+            // Keep lines that look like medical data (have letters, numbers, colons)
+            return (alphaRatio > 0.3 || (hasColon && hasNumbers)) && cleaned.length > 3 ? cleaned : '';
+          })
+          .filter(line => line.length > 0)
+          .slice(0, 50); // Prevent too much data
+        
+        const extractedText = lines.join('\n').trim();
+        
+        if (extractedText.length > 50) {
+          console.log('Enhanced PDF text extraction successful, text length:', extractedText.length);
+          return extractedText;
+        } else {
+          throw new Error('Enhanced text extraction insufficient');
+        }
+        
+      } catch (enhancedError) {
+        console.log('All PDF extraction methods failed, this is likely an image-only PDF');
+        
+        // Provide comprehensive guidance for image-based PDFs
+        throw new Error(`Unable to extract readable text from this PDF. This appears to be an image-based, scanned, or protected PDF.
+
+**Recommended Solutions:**
+1. **Convert to Image**: Save PDF pages as JPG/PNG images and upload those instead
+2. **Copy Text Manually**: Use your PDF viewer's text selection tool to copy text
+3. **Alternative Format**: Request a text-searchable version from your healthcare provider
+4. **OCR Tools**: Use dedicated PDF OCR software to convert to searchable text
+
+**Why this happens:**
+- PDF contains embedded images instead of selectable text
+- PDF has security restrictions preventing text extraction  
+- PDF uses complex formatting that interferes with text parsing
+
+The system can successfully analyze clear medical report images using advanced OCR and AI technology.`);
       }
-      
-    } catch (basicError) {
-      console.log('Basic PDF extraction also failed, this may be an image-based PDF');
-      
-      // Provide clear guidance for image-based PDFs
-      throw new Error(`Unable to extract text from this PDF. This appears to be an image-based or scanned PDF. Please try:
-
-1. Converting the PDF pages to images (JPG/PNG) and uploading those instead
-2. Using your PDF viewer's text selection tool to copy and paste the text manually
-3. If possible, requesting a text-based version of the report from your healthcare provider
-
-The system can analyze images of medical reports using advanced OCR and AI vision technology.`);
     }
   }
 }
@@ -156,74 +265,76 @@ Focus on extracting:
     throw error;
   }
 }
-// Extract text from image using OCR with optimized Tesseract.js configuration
+// Extract text from image using optimized OCR and AI Vision
 async function extractTextFromImage(imageBuffer: ArrayBuffer): Promise<string> {
   console.log('Starting optimized image text extraction');
   
-  // First try Tesseract.js OCR with optimized settings
+  // Try OpenAI Vision first for faster processing
   try {
-    console.log('Attempting Tesseract.js OCR with optimized configuration...');
+    console.log('Attempting OpenAI Vision for faster medical image analysis...');
+    return await processImageWithAI(imageBuffer);
+  } catch (visionError: any) {
+    console.log('OpenAI Vision failed, falling back to Tesseract OCR...', visionError?.message);
     
-    const { createWorker } = await import('tesseract.js');
-    
-    console.log('Creating optimized Tesseract worker...');
-    const worker = await createWorker('eng', 1, {
-      logger: (m) => {
-        if (m.status === 'recognizing text') {
-          console.log(`OCR Progress: ${(m.progress * 100).toFixed(1)}%`);
-        }
-      },
-      cachePath: './.next/cache/tesseract',
-      gzip: false
-    });
-    
-    console.log('Worker created, starting optimized recognition...');
-    
-    // Enhanced OCR settings for medical documents
-    await worker.setParameters({
-      'tessedit_pageseg_mode': 1 as any, // Automatic page segmentation with OSD
-      'tessedit_ocr_engine_mode': 1 as any, // LSTM neural net mode
-      'preserve_interword_spaces': '1',
-      'textord_really_old_xheight': '1',
-      'textord_min_linesize': '1.25',
-    });
-    
-    // Process the image buffer with optimized settings
-    const { data: { text, confidence } } = await worker.recognize(Buffer.from(imageBuffer));
-    
-    await worker.terminate();
-    
-    console.log(`OCR completed. Confidence: ${confidence}%, Text length: ${text?.length || 0}`);
-    
-    // Accept results with lower confidence threshold for medical documents
-    if (text && text.trim().length > 15 && confidence > 20) {
-      console.log('Tesseract OCR successful with optimized settings');
-      return text.trim();
-    } else {
-      console.log(`Tesseract OCR quality insufficient (confidence: ${confidence}%), trying OpenAI Vision...`);
-      throw new Error('OCR confidence too low');
-    }
-    
-  } catch (tesseractError: any) {
-    console.log('Tesseract OCR failed, trying OpenAI Vision...', tesseractError?.message);
-    
-    // Fallback to OpenAI Vision with faster processing
+    // Fallback to Tesseract.js OCR with optimized settings
     try {
-      return await processImageWithAI(imageBuffer);
-    } catch (visionError) {
-      console.error('Both OCR and Vision failed:', { tesseractError, visionError });
+      console.log('Starting optimized Tesseract.js OCR...');
+      
+      const { createWorker } = await import('tesseract.js');
+      
+      const worker = await createWorker('eng', 1, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            console.log(`OCR Progress: ${(m.progress * 100).toFixed(1)}%`);
+          }
+        },
+        cachePath: './.next/cache/tesseract',
+        gzip: false
+      });
+      
+      // Optimized OCR settings for medical documents - faster processing
+      await worker.setParameters({
+        'tessedit_pageseg_mode': 6 as any, // Uniform block of text (faster than mode 1)
+        'tessedit_ocr_engine_mode': 1 as any, // LSTM neural net mode
+        'preserve_interword_spaces': '1',
+        'textord_really_old_xheight': '0', // Faster processing
+        'tessedit_char_whitelist': 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:-/()[]{}% ', // Medical document characters
+      });
+      
+      // Process the image buffer with faster settings
+      const { data: { text, confidence } } = await worker.recognize(Buffer.from(imageBuffer));
+      
+      await worker.terminate();
+      
+      console.log(`OCR completed in optimized mode. Confidence: ${confidence}%, Text length: ${text?.length || 0}`);
+      
+      // Accept results with reasonable confidence for faster processing
+      if (text && text.trim().length > 15 && confidence > 25) {
+        console.log('Optimized Tesseract OCR successful');
+        return text.trim();
+      } else {
+        console.log(`OCR quality insufficient (confidence: ${confidence}%), processing failed`);
+        throw new Error('OCR confidence too low for reliable text extraction');
+      }
+      
+    } catch (tesseractError: any) {
+      console.error('Both Vision and OCR failed:', { visionError, tesseractError });
       
       // Provide comprehensive error message
-      throw new Error(`Unable to extract text from image using both OCR and AI vision analysis. This could be due to:
-- Image quality issues (blurry, low resolution, poor lighting)
-- Complex formatting or handwritten text
-- API service limitations
+      throw new Error(`Unable to extract text from image using both AI Vision and OCR analysis. 
 
-Please try:
-1. Uploading a clearer, higher resolution image
-2. Converting the image to a PDF format
-3. Manually typing the text from your medical report
-4. Ensuring the image contains clearly readable printed text`);
+**Possible causes:**
+- Image quality issues (blurry, low resolution, poor lighting)
+- Complex formatting, handwritten text, or unusual fonts
+- API service limitations or connectivity issues
+
+**Recommended solutions:**
+1. **Improve Image Quality**: Upload a clearer, higher resolution image with good lighting
+2. **Alternative Format**: Convert to PDF or try a different image format (PNG, JPG)
+3. **Manual Entry**: Type the text from your medical report manually
+4. **Document Scanning**: Use a dedicated document scanner app for better image quality
+
+The system works best with clear, high-contrast medical reports with printed text.`);
     }
   }
 }
