@@ -36,8 +36,8 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
       throw new Error('pdf-parse returned insufficient text');
     }
     
-  } catch (pdfParseError) {
-    console.log('pdf-parse failed, trying basic text extraction...', pdfParseError.message);
+  } catch (pdfParseError: any) {
+    console.log('pdf-parse failed, trying basic text extraction...', pdfParseError?.message);
     
     // Fallback: Try basic text extraction for simple PDFs
     try {
@@ -74,14 +74,25 @@ The system can analyze images of medical reports using advanced OCR and AI visio
   }
 }
 
-// Enhanced image processing with OpenAI Vision fallback
+// Enhanced image processing with optimized OpenAI Vision
 async function processImageWithAI(imageBuffer: ArrayBuffer): Promise<string> {
   try {
-    console.log('Attempting OpenAI Vision analysis for medical report image');
+    console.log('Attempting optimized OpenAI Vision analysis for medical report image');
     
     // Convert buffer to base64 for OpenAI Vision API
     const base64Image = Buffer.from(imageBuffer).toString('base64');
-    const mimeType = 'image/jpeg'; // Assume JPEG, could be detected
+    
+    // Detect image type for better processing
+    const firstBytes = new Uint8Array(imageBuffer.slice(0, 8));
+    let mimeType = 'image/jpeg'; // Default
+    
+    if (firstBytes[0] === 0x89 && firstBytes[1] === 0x50) {
+      mimeType = 'image/png';
+    } else if (firstBytes[0] === 0xFF && firstBytes[1] === 0xD8) {
+      mimeType = 'image/jpeg';
+    } else if (firstBytes[0] === 0x47 && firstBytes[1] === 0x49) {
+      mimeType = 'image/gif';
+    }
     
     const { openai } = await import('@/ai/openai');
     
@@ -90,22 +101,32 @@ async function processImageWithAI(imageBuffer: ArrayBuffer): Promise<string> {
       messages: [
         {
           role: "system",
-          content: `You are a medical document OCR assistant. Extract ALL visible text from medical reports, lab results, or medical documents in the image. 
+          content: `You are a specialized medical document OCR assistant. Extract ALL visible text from medical reports, lab results, or medical documents in the image with high accuracy and speed.
 
-IMPORTANT:
-- Extract the complete text content, preserving structure and formatting as much as possible
-- Include all patient information, test results, values, dates, recommendations, and medical notes
-- Maintain the original order and organization of information
-- If text is unclear, make reasonable medical interpretations but note uncertainty
-- Do not add analysis or interpretation - only extract the visible text content
-- Format the output as clean, readable text that preserves the document structure`
+CRITICAL INSTRUCTIONS:
+- Extract the complete text content, preserving structure and medical terminology exactly as written
+- Include ALL patient information, test results, numerical values, dates, recommendations, and medical notes
+- Maintain the original order and organization of information as it appears in the document
+- Pay special attention to numbers, units (mg/dL, mmHg, etc.), and medical abbreviations
+- If text is partially unclear, make best medical interpretation but note uncertainty with [unclear]
+- Do not add analysis, interpretation, or medical advice - only extract visible text
+- Format output as clean, readable text that preserves the document's structure
+- Process quickly while maintaining accuracy for real-time analysis
+
+Focus on extracting:
+1. Patient demographics and identifiers
+2. Test names and numerical results with units
+3. Reference ranges and normal values
+4. Dates and times
+5. Provider names and recommendations
+6. Any abnormal flags or critical values`
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Please extract all text content from this medical report image:"
+              text: "Extract all text content from this medical report image. Focus on accuracy and completeness:"
             },
             {
               type: "image_url",
@@ -117,13 +138,13 @@ IMPORTANT:
           ]
         }
       ],
-      max_tokens: 2000,
-      temperature: 0.1
+      max_tokens: 2500, // Increased for longer reports
+      temperature: 0.1 // Very low for consistent extraction
     });
 
     const extractedText = response.choices[0]?.message?.content;
     
-    if (extractedText && extractedText.trim().length > 20) {
+    if (extractedText && extractedText.trim().length > 15) {
       console.log('OpenAI Vision extraction successful, text length:', extractedText.length);
       return extractedText.trim();
     } else {
@@ -135,50 +156,58 @@ IMPORTANT:
     throw error;
   }
 }
-// Extract text from image using OCR with proper Tesseract.js configuration
+// Extract text from image using OCR with optimized Tesseract.js configuration
 async function extractTextFromImage(imageBuffer: ArrayBuffer): Promise<string> {
-  console.log('Starting comprehensive image text extraction');
+  console.log('Starting optimized image text extraction');
   
-  // First try Tesseract.js OCR
+  // First try Tesseract.js OCR with optimized settings
   try {
-    console.log('Attempting Tesseract.js OCR...');
+    console.log('Attempting Tesseract.js OCR with optimized configuration...');
     
     const { createWorker } = await import('tesseract.js');
     
-    console.log('Creating Tesseract worker...');
+    console.log('Creating optimized Tesseract worker...');
     const worker = await createWorker('eng', 1, {
-      logger: (m) => console.log('Tesseract:', m.status, m.progress),
+      logger: (m) => {
+        if (m.status === 'recognizing text') {
+          console.log(`OCR Progress: ${(m.progress * 100).toFixed(1)}%`);
+        }
+      },
       cachePath: './.next/cache/tesseract',
-      gzip: false,
-      corePath: undefined // Let Tesseract use default
+      gzip: false
     });
     
-    console.log('Worker created successfully, starting recognition...');
+    console.log('Worker created, starting optimized recognition...');
     
-    // Process the image buffer
-    const { data: { text, confidence } } = await worker.recognize(Buffer.from(imageBuffer), {
-      rectangles: false,
-      pdfTitle: 'Medical Report',
-      preserveInterwordSpaces: true
+    // Enhanced OCR settings for medical documents
+    await worker.setParameters({
+      'tessedit_pageseg_mode': 1 as any, // Automatic page segmentation with OSD
+      'tessedit_ocr_engine_mode': 1 as any, // LSTM neural net mode
+      'preserve_interword_spaces': '1',
+      'textord_really_old_xheight': '1',
+      'textord_min_linesize': '1.25',
     });
+    
+    // Process the image buffer with optimized settings
+    const { data: { text, confidence } } = await worker.recognize(Buffer.from(imageBuffer));
     
     await worker.terminate();
     
     console.log(`OCR completed. Confidence: ${confidence}%, Text length: ${text?.length || 0}`);
     
-    // Accept results with reasonable confidence and length
-    if (text && text.trim().length > 20 && confidence > 25) {
-      console.log('Tesseract OCR successful');
+    // Accept results with lower confidence threshold for medical documents
+    if (text && text.trim().length > 15 && confidence > 20) {
+      console.log('Tesseract OCR successful with optimized settings');
       return text.trim();
     } else {
-      console.log(`Tesseract OCR quality insufficient, trying OpenAI Vision...`);
+      console.log(`Tesseract OCR quality insufficient (confidence: ${confidence}%), trying OpenAI Vision...`);
       throw new Error('OCR confidence too low');
     }
     
-  } catch (tesseractError) {
-    console.log('Tesseract OCR failed, trying OpenAI Vision...', tesseractError.message);
+  } catch (tesseractError: any) {
+    console.log('Tesseract OCR failed, trying OpenAI Vision...', tesseractError?.message);
     
-    // Fallback to OpenAI Vision
+    // Fallback to OpenAI Vision with faster processing
     try {
       return await processImageWithAI(imageBuffer);
     } catch (visionError) {
@@ -199,58 +228,151 @@ Please try:
   }
 }
 
-// Mock analysis function for demo purposes when API key is not available
-function createMockAnalysis(reportText: string) {
+// Enhanced analysis function that actually analyzes the extracted content
+function createContentBasedAnalysis(reportText: string) {
   const reportLower = reportText.toLowerCase();
-  const mockFindings: string[] = [];
-  let mockSummary = '';
+  const lines = reportText.split('\n').filter(line => line.trim().length > 3);
+  const words = reportText.split(/\s+/).filter(word => word.length > 2);
   
-  // Basic pattern matching for common medical terms
-  if (reportLower.includes('cholesterol')) {
-    if (reportLower.includes('borderline') || reportLower.includes('high')) {
-      mockFindings.push('Cholesterol levels are elevated and may require dietary modifications');
+  const findings: string[] = [];
+  let summary = '';
+  
+  // Extract specific values and measurements
+  const extractMedicalValues = (text: string) => {
+    const patterns = {
+      bloodPressure: /(\d{2,3}\/\d{2,3})\s*mmhg/gi,
+      cholesterol: /cholesterol[:\s]*(\d+)/gi,
+      glucose: /glucose[:\s]*(\d+)/gi,
+      hemoglobin: /h[ae]moglobin[:\s]*(\d+\.?\d*)/gi,
+      heartRate: /heart rate[:\s]*(\d+)/gi,
+      temperature: /temp(?:erature)?[:\s]*(\d+\.?\d*)/gi,
+      weight: /weight[:\s]*(\d+\.?\d*)/gi,
+      dates: /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/g,
+      abnormalFlags: /\b(high|low|elevated|decreased|abnormal|critical|urgent)\b/gi
+    };
+    
+    const results: any = {};
+    for (const [key, pattern] of Object.entries(patterns)) {
+      const matches = text.match(pattern);
+      if (matches && matches.length > 0) {
+        results[key] = matches;
+      }
     }
-    mockFindings.push('Lipid profile shows cholesterol measurements outside normal ranges');
+    return results;
+  };
+  
+  const medicalValues = extractMedicalValues(reportText);
+  
+  // Analyze content based on actual extracted data
+  if (medicalValues.bloodPressure && medicalValues.bloodPressure.length > 0) {
+    findings.push(`Blood pressure readings found: ${medicalValues.bloodPressure.join(', ')}`);
   }
   
-  if (reportLower.includes('blood pressure') || reportLower.includes('mmhg')) {
-    mockFindings.push('Blood pressure readings noted in the report');
+  if (medicalValues.cholesterol && medicalValues.cholesterol.length > 0) {
+    findings.push(`Cholesterol levels documented: ${medicalValues.cholesterol.join(', ')}`);
   }
   
-  if (reportLower.includes('glucose') || reportLower.includes('blood sugar')) {
-    mockFindings.push('Blood glucose levels measured and documented');
+  if (medicalValues.glucose && medicalValues.glucose.length > 0) {
+    findings.push(`Blood glucose measurements: ${medicalValues.glucose.join(', ')}`);
   }
   
-  if (reportLower.includes('hemoglobin') || reportLower.includes('blood count')) {
-    mockFindings.push('Complete blood count (CBC) results available');
+  if (medicalValues.hemoglobin && medicalValues.hemoglobin.length > 0) {
+    findings.push(`Hemoglobin levels recorded: ${medicalValues.hemoglobin.join(', ')}`);
   }
   
-  if (reportLower.includes('recommendation')) {
-    mockFindings.push('Healthcare provider recommendations included in report');
+  if (medicalValues.abnormalFlags && medicalValues.abnormalFlags.length > 0) {
+    const uniqueFlags = [...new Set(medicalValues.abnormalFlags.map((f: string) => f.toLowerCase()))];
+    findings.push(`Abnormal indicators noted: ${uniqueFlags.join(', ')}`);
   }
   
-  // Generate a basic summary
-  if (reportLower.includes('normal') && reportLower.includes('recommendation')) {
-    mockSummary = 'This medical report contains laboratory test results with some values in normal ranges and others requiring attention. The healthcare provider has included specific recommendations for follow-up care and lifestyle modifications.';
+  // Look for specific medical departments/tests
+  const medicalSections = {
+    'laboratory': /lab(?:oratory)?|blood test|urine test|specimen/gi,
+    'cardiology': /heart|cardiac|ecg|ekg|chest pain/gi,
+    'endocrine': /diabetes|thyroid|hormone|insulin/gi,
+    'hematology': /blood count|cbc|wbc|rbc|platelet/gi,
+    'chemistry': /metabolic panel|liver function|kidney function/gi
+  };
+  
+  for (const [section, pattern] of Object.entries(medicalSections)) {
+    if (pattern.test(reportText)) {
+      findings.push(`${section.charAt(0).toUpperCase() + section.slice(1)} testing/evaluation documented`);
+    }
+  }
+  
+  // Extract doctor recommendations if present
+  const recommendationPatterns = [
+    /recommend(?:ed|ation)[s]?[:\s]*([^\.]+)/gi,
+    /follow[- ]?up[:\s]*([^\.]+)/gi,
+    /continue[:\s]*([^\.]+)/gi,
+    /discontinue[:\s]*([^\.]+)/gi
+  ];
+  
+  recommendationPatterns.forEach(pattern => {
+    const matches = reportText.match(pattern);
+    if (matches && matches.length > 0) {
+      matches.slice(0, 3).forEach(match => { // Limit to first 3 matches
+        findings.push(`Provider recommendation: ${match.trim()}`);
+      });
+    }
+  });
+  
+  // Generate contextual summary based on content
+  const contentLength = reportText.length;
+  const hasNumericValues = /\d+\.?\d*\s*(mg\/dl|mmhg|bpm|°f|°c|%)/gi.test(reportText);
+  const hasDateInfo = medicalValues.dates && medicalValues.dates.length > 0;
+  
+  if (contentLength > 500) {
+    summary = `This comprehensive medical report (${contentLength} characters) contains detailed clinical information`;
+    if (hasNumericValues) summary += ' with specific laboratory values and measurements';
+    if (hasDateInfo) summary += ` from ${medicalValues.dates.length} documented date(s)`;
+    summary += '. ';
+  } else if (contentLength > 100) {
+    summary = `This medical report contains clinical information and test results`;
+    if (hasNumericValues) summary += ' with measurable values';
+    summary += '. ';
   } else {
-    mockSummary = 'This medical report contains various test results and clinical findings. Please consult with your healthcare provider to discuss the results and any necessary follow-up actions.';
+    summary = 'This appears to be a brief medical summary or excerpt. ';
   }
   
-  // Add standard disclaimer
-  mockFindings.push('This is a demo analysis. For accurate medical interpretation, please consult your healthcare provider');
+  if (findings.length > 3) {
+    summary += `Multiple clinical findings are documented including ${findings.length} specific observations. `;
+  } else if (findings.length > 0) {
+    summary += `Several clinical findings are documented. `;
+  }
+  
+  summary += 'Please review these findings with your healthcare provider for proper medical interpretation and any necessary follow-up actions.';
+  
+  // Ensure we have meaningful findings
+  if (findings.length === 0) {
+    findings.push('Medical document processed successfully');
+    findings.push(`Document contains ${words.length} words across ${lines.length} lines`);
+    if (hasNumericValues) {
+      findings.push('Numerical measurements and values are present in the report');
+    }
+  }
+  
+  // Add extraction success indicator
+  findings.push(`✓ Text extraction successful: ${contentLength} characters processed`);
   
   return {
-    summary: mockSummary || 'Medical report processed successfully. This is a demonstration mode - please consult your healthcare provider for accurate medical interpretation.',
-    keyFindings: mockFindings.length > 0 ? mockFindings : [
-      'Medical report contains test results and clinical information',
-      'Healthcare provider consultation recommended for proper interpretation',
-      'This is a demonstration of the AI medical report analysis feature'
-    ],
+    summary,
+    keyFindings: findings,
     reportText: reportText,
+    debugInfo: {
+      extractedLength: contentLength,
+      linesCount: lines.length,
+      wordsCount: words.length,
+      hasNumericValues,
+      medicalValues: Object.keys(medicalValues),
+      extractionSuccessful: true
+    }
   };
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -264,17 +386,33 @@ export async function POST(request: NextRequest) {
     }
 
     let reportText = '';
+    let extractionDetails = {
+      method: '',
+      fileSize: 0,
+      processingTime: 0,
+      extractedLength: 0
+    };
 
     // Extract text from file if provided
     if (file) {
       console.log('Processing file:', file.name, 'Type:', file.type, 'Size:', file.size);
+      extractionDetails.fileSize = file.size;
+      const extractionStart = Date.now();
       
       if (file.type === 'application/pdf') {
         try {
           console.log('Starting PDF text extraction');
+          extractionDetails.method = 'PDF parsing';
           const buffer = await file.arrayBuffer();
           reportText = await extractTextFromPDF(buffer);
-          console.log('PDF processing completed, extracted text length:', reportText.length);
+          extractionDetails.processingTime = Date.now() - extractionStart;
+          extractionDetails.extractedLength = reportText.length;
+          
+          console.log('PDF processing completed:', {
+            extractedLength: reportText.length,
+            processingTime: extractionDetails.processingTime,
+            preview: reportText.substring(0, 100) + '...'
+          });
           
           if (!reportText.trim()) {
             return NextResponse.json(
@@ -292,13 +430,21 @@ export async function POST(request: NextRequest) {
       } else if (file.type.startsWith('image/')) {
         try {
           console.log('Starting OCR processing for image:', file.name);
+          extractionDetails.method = 'OCR + AI Vision';
           
           // Convert file to buffer for OCR processing
           const buffer = await file.arrayBuffer();
           
           // Extract text using OCR
           reportText = await extractTextFromImage(buffer);
-          console.log('OCR completed, extracted text length:', reportText.length);
+          extractionDetails.processingTime = Date.now() - extractionStart;
+          extractionDetails.extractedLength = reportText.length;
+          
+          console.log('OCR completed:', {
+            extractedLength: reportText.length,
+            processingTime: extractionDetails.processingTime,
+            preview: reportText.substring(0, 100) + '...'
+          });
           
           if (!reportText.trim()) {
             return NextResponse.json(
@@ -317,7 +463,10 @@ export async function POST(request: NextRequest) {
                  file.type === 'application/msword' || 
                  file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         try {
+          extractionDetails.method = 'Direct text reading';
           reportText = await file.text();
+          extractionDetails.processingTime = Date.now() - extractionStart;
+          extractionDetails.extractedLength = reportText.length;
         } catch (textError) {
           console.error('Text file processing failed:', textError);
           return NextResponse.json(
@@ -333,6 +482,8 @@ export async function POST(request: NextRequest) {
       }
     } else if (text) {
       reportText = text;
+      extractionDetails.method = 'Manual text input';
+      extractionDetails.extractedLength = reportText.length;
     }
 
     if (!reportText.trim()) {
@@ -342,25 +493,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('Text extraction successful:', extractionDetails);
+
     // Check if we have the required API key for AI analysis
     const hasApiKey = process.env.OPENAI_API_KEY;
+    const analysisStart = Date.now();
     
     if (!hasApiKey) {
-      console.log('No API key found, using mock analysis for demo purposes');
-      // Use mock analysis when API key is not available
-      const analysis = createMockAnalysis(reportText);
+      console.log('No OpenAI API key found, using enhanced content-based analysis');
+      // Use enhanced content-based analysis instead of generic mock
+      const analysis = createContentBasedAnalysis(reportText);
+      analysis.debugInfo = {
+        ...analysis.debugInfo,
+        analysisMethod: 'Content-based analysis (no API key)',
+        totalProcessingTime: Date.now() - startTime,
+        extractionDetails
+      } as any;
       return NextResponse.json(analysis);
     }
 
     // Try to use real AI analysis
     try {
+      console.log('Attempting OpenAI analysis...');
       const { analyzeMedicalReport } = await import('@/ai/flows/medicalReportFlow');
       const analysis = await analyzeMedicalReport({ reportText });
-      return NextResponse.json(analysis);
+      
+      // Add debug information to successful AI analysis
+      const enhancedAnalysis = {
+        ...analysis,
+        debugInfo: {
+          analysisMethod: 'OpenAI GPT-4o-mini',
+          totalProcessingTime: Date.now() - startTime,
+          aiProcessingTime: Date.now() - analysisStart,
+          extractionDetails,
+          openaiSuccess: true
+        }
+      };
+      
+      console.log('OpenAI analysis completed successfully');
+      return NextResponse.json(enhancedAnalysis);
     } catch (error) {
-      console.warn('AI analysis failed, falling back to mock analysis:', error);
-      // Fall back to mock analysis if AI fails
-      const analysis = createMockAnalysis(reportText);
+      console.warn('AI analysis failed, falling back to enhanced content-based analysis:', error);
+      // Fall back to enhanced content-based analysis if AI fails
+      const analysis = createContentBasedAnalysis(reportText);
+      analysis.debugInfo = {
+        ...analysis.debugInfo,
+        analysisMethod: 'Content-based analysis (OpenAI fallback)',
+        totalProcessingTime: Date.now() - startTime,
+        extractionDetails,
+        openaiError: error instanceof Error ? error.message : 'Unknown error'
+      } as any;
       return NextResponse.json(analysis);
     }
   } catch (error) {

@@ -34,7 +34,7 @@ const MedicalQuestionOutputSchema = z.object({
 });
 export type MedicalQuestionOutput = z.infer<typeof MedicalQuestionOutputSchema>;
 
-// Medical report analysis using OpenAI
+// Medical report analysis using OpenAI with enhanced error handling
 async function analyzeWithOpenAI(reportText: string): Promise<{ summary: string; keyFindings: string[] }> {
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -43,14 +43,19 @@ async function analyzeWithOpenAI(reportText: string): Promise<{ summary: string;
         role: "system",
         content: `You are a medical AI assistant specialized in analyzing medical reports. Your role is to help patients understand their medical reports by providing clear, accurate summaries while being careful not to provide specific medical advice or diagnoses.
 
-**Instructions:**
-1. Provide a clear, comprehensive summary of the medical report in plain language that patients can understand
-2. Extract key findings, test results, abnormal values, diagnoses, recommendations, and important observations
-3. Explain medical terms in simple language when possible
-4. Focus on factual information from the report
-5. Do NOT provide medical advice, treatment recommendations, or diagnoses beyond what's stated in the report
+**Enhanced Analysis Instructions:**
+1. Provide a detailed, comprehensive summary of the medical report in plain language that patients can understand
+2. Extract ALL key findings, test results, abnormal values, diagnoses, recommendations, and important observations
+3. Pay special attention to:
+   - Specific numerical values and their reference ranges
+   - Abnormal or concerning findings marked as "High", "Low", "Abnormal", etc.
+   - Provider recommendations and follow-up instructions
+   - Dates and timelines mentioned in the report
+   - Patient demographics and test information
+4. Explain medical terms in simple language when possible
+5. Focus on factual information from the report without adding medical interpretation
 6. If concerning findings are mentioned, suggest consulting with healthcare providers
-7. Be empathetic and supportive in tone
+7. Be empathetic and supportive in tone while remaining factual
 
 **IMPORTANT MEDICAL DISCLAIMERS:**
 - Always emphasize that this analysis is for informational purposes only
@@ -58,23 +63,27 @@ async function analyzeWithOpenAI(reportText: string): Promise<{ summary: string;
 - Do not provide specific medical advice or treatment recommendations
 - Focus on explaining what the report says rather than interpreting medical significance
 
-Please analyze the medical report and provide:
-1. A comprehensive summary in plain language
-2. A list of key findings as separate bullet points
-
-Format your response as JSON with the following structure:
+**Response Format Requirements:**
+Please analyze the medical report thoroughly and provide your response as JSON with this exact structure:
 {
-  "summary": "A comprehensive summary of the medical report",
-  "keyFindings": ["Finding 1", "Finding 2", "Finding 3"]
-}`
+  "summary": "A comprehensive, detailed summary of the medical report in plain language",
+  "keyFindings": [
+    "Specific finding 1 with relevant details",
+    "Specific finding 2 with relevant details",
+    "Provider recommendation or follow-up instruction",
+    "Additional important observations"
+  ]
+}
+
+Ensure the summary is comprehensive (200-400 words) and keyFindings includes 5-10 specific, actionable items extracted from the report.`
       },
       {
         role: "user",
-        content: `Please analyze this medical report:\n\n${reportText}`
+        content: `Please provide a comprehensive analysis of this medical report:\n\n${reportText}`
       }
     ],
-    temperature: 0.3,
-    max_tokens: 2000
+    temperature: 0.2, // Lower temperature for more consistent medical analysis
+    max_tokens: 2500 // Increased for more detailed analysis
   });
 
   const responseText = completion.choices[0]?.message?.content;
@@ -83,38 +92,62 @@ Format your response as JSON with the following structure:
   }
 
   try {
+    // Try to parse JSON response
     const parsed = JSON.parse(responseText);
     return {
       summary: parsed.summary || 'Medical report analysis completed.',
       keyFindings: Array.isArray(parsed.keyFindings) ? parsed.keyFindings : []
     };
-  } catch {
+  } catch (parseError) {
+    console.log('JSON parsing failed, extracting from text response:', parseError);
+    
     // Fallback: extract summary and findings from text response
     const lines = responseText.split('\n').filter(line => line.trim());
     let summary = '';
     const keyFindings: string[] = [];
     
     let currentSection = '';
+    let summaryLines: string[] = [];
+    
     for (const line of lines) {
       const trimmed = line.trim();
+      
       if (trimmed.toLowerCase().includes('summary') || trimmed.toLowerCase().includes('overview')) {
         currentSection = 'summary';
         continue;
-      } else if (trimmed.toLowerCase().includes('key finding') || trimmed.toLowerCase().includes('finding')) {
+      } else if (trimmed.toLowerCase().includes('key finding') || 
+                 trimmed.toLowerCase().includes('finding') ||
+                 trimmed.toLowerCase().includes('important')) {
         currentSection = 'findings';
         continue;
       }
       
-      if (currentSection === 'summary' && trimmed && !trimmed.startsWith('-') && !trimmed.startsWith('•')) {
-        summary += (summary ? ' ' : '') + trimmed;
-      } else if (currentSection === 'findings' && (trimmed.startsWith('-') || trimmed.startsWith('•'))) {
-        keyFindings.push(trimmed.replace(/^[-•]\s*/, ''));
+      if (currentSection === 'summary' && trimmed && !trimmed.startsWith('-') && !trimmed.startsWith('•') && !trimmed.startsWith('*')) {
+        summaryLines.push(trimmed);
+      } else if ((currentSection === 'findings' || trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('*')) && trimmed.length > 10) {
+        const finding = trimmed.replace(/^[-•*]\s*/, '').trim();
+        if (finding.length > 10) {
+          keyFindings.push(finding);
+        }
+      } else if (!currentSection && trimmed.length > 20) {
+        // If no section detected, treat longer lines as summary content
+        summaryLines.push(trimmed);
       }
     }
     
+    summary = summaryLines.join(' ').trim();
+    
+    // If we still don't have good content, use the entire response
+    if (!summary && keyFindings.length === 0) {
+      return {
+        summary: responseText.trim(),
+        keyFindings: ['Medical report analysis completed using AI interpretation']
+      };
+    }
+    
     return {
-      summary: summary || responseText,
-      keyFindings: keyFindings.length > 0 ? keyFindings : [responseText]
+      summary: summary || 'Medical report contains important health information that should be reviewed with your healthcare provider.',
+      keyFindings: keyFindings.length > 0 ? keyFindings : ['Medical report processed successfully', 'Consult healthcare provider for detailed interpretation']
     };
   }
 }
@@ -174,55 +207,138 @@ export async function analyzeMedicalReport(input: MedicalReportInput): Promise<M
       reportText: input.reportText,
     };
   } catch (error) {
-    // Provide a fallback response when OpenAI API is not available (e.g., network issues)
-    console.warn('OpenAI analysis failed, providing fallback response:', error);
+    // Provide enhanced fallback response when OpenAI API is not available
+    console.warn('OpenAI analysis failed, providing enhanced content-based fallback:', error);
     
-    // Extract basic information from the report text for a mock analysis
+    // Use the same enhanced content-based analysis as in the API route
     const reportText = input.reportText.toLowerCase();
-    const mockFindings: string[] = [];
-    let mockSummary = '';
+    const lines = input.reportText.split('\n').filter(line => line.trim().length > 3);
+    const words = input.reportText.split(/\s+/).filter(word => word.length > 2);
     
-    // Basic pattern matching for common medical terms
-    if (reportText.includes('cholesterol')) {
-      if (reportText.includes('borderline') || reportText.includes('high')) {
-        mockFindings.push('Cholesterol levels are elevated and may require dietary modifications');
+    const findings: string[] = [];
+    let summary = '';
+    
+    // Extract specific values and measurements (same logic as API route)
+    const extractMedicalValues = (text: string) => {
+      const patterns = {
+        bloodPressure: /(\d{2,3}\/\d{2,3})\s*mmhg/gi,
+        cholesterol: /cholesterol[:\s]*(\d+)/gi,
+        glucose: /glucose[:\s]*(\d+)/gi,
+        hemoglobin: /h[ae]moglobin[:\s]*(\d+\.?\d*)/gi,
+        heartRate: /heart rate[:\s]*(\d+)/gi,
+        temperature: /temp(?:erature)?[:\s]*(\d+\.?\d*)/gi,
+        weight: /weight[:\s]*(\d+\.?\d*)/gi,
+        dates: /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/g,
+        abnormalFlags: /\b(high|low|elevated|decreased|abnormal|critical|urgent)\b/gi
+      };
+      
+      const results: any = {};
+      for (const [key, pattern] of Object.entries(patterns)) {
+        const matches = text.match(pattern);
+        if (matches && matches.length > 0) {
+          results[key] = matches;
+        }
       }
-      mockFindings.push('Lipid profile shows cholesterol measurements outside normal ranges');
+      return results;
+    };
+    
+    const medicalValues = extractMedicalValues(input.reportText);
+    
+    // Analyze content based on actual extracted data
+    if (medicalValues.bloodPressure && medicalValues.bloodPressure.length > 0) {
+      findings.push(`Blood pressure readings found: ${medicalValues.bloodPressure.join(', ')}`);
     }
     
-    if (reportText.includes('blood pressure') || reportText.includes('mmhg')) {
-      mockFindings.push('Blood pressure readings noted in the report');
+    if (medicalValues.cholesterol && medicalValues.cholesterol.length > 0) {
+      findings.push(`Cholesterol levels documented: ${medicalValues.cholesterol.join(', ')}`);
     }
     
-    if (reportText.includes('glucose') || reportText.includes('blood sugar')) {
-      mockFindings.push('Blood glucose levels measured and documented');
+    if (medicalValues.glucose && medicalValues.glucose.length > 0) {
+      findings.push(`Blood glucose measurements: ${medicalValues.glucose.join(', ')}`);
     }
     
-    if (reportText.includes('hemoglobin') || reportText.includes('blood count')) {
-      mockFindings.push('Complete blood count (CBC) results available');
+    if (medicalValues.hemoglobin && medicalValues.hemoglobin.length > 0) {
+      findings.push(`Hemoglobin levels recorded: ${medicalValues.hemoglobin.join(', ')}`);
     }
     
-    if (reportText.includes('recommendation')) {
-      mockFindings.push('Healthcare provider recommendations included in report');
+    if (medicalValues.abnormalFlags && medicalValues.abnormalFlags.length > 0) {
+      const uniqueFlags = [...new Set(medicalValues.abnormalFlags.map((f: string) => f.toLowerCase()))];
+      findings.push(`Abnormal indicators noted: ${uniqueFlags.join(', ')}`);
     }
     
-    // Generate a basic summary
-    if (reportText.includes('normal') && reportText.includes('recommendation')) {
-      mockSummary = 'This medical report contains laboratory test results with some values in normal ranges and others requiring attention. The healthcare provider has included specific recommendations for follow-up care and lifestyle modifications.';
+    // Look for specific medical departments/tests
+    const medicalSections = {
+      'laboratory': /lab(?:oratory)?|blood test|urine test|specimen/gi,
+      'cardiology': /heart|cardiac|ecg|ekg|chest pain/gi,
+      'endocrine': /diabetes|thyroid|hormone|insulin/gi,
+      'hematology': /blood count|cbc|wbc|rbc|platelet/gi,
+      'chemistry': /metabolic panel|liver function|kidney function/gi
+    };
+    
+    for (const [section, pattern] of Object.entries(medicalSections)) {
+      if (pattern.test(input.reportText)) {
+        findings.push(`${section.charAt(0).toUpperCase() + section.slice(1)} testing/evaluation documented`);
+      }
+    }
+    
+    // Extract doctor recommendations if present
+    const recommendationPatterns = [
+      /recommend(?:ed|ation)[s]?[:\s]*([^\.]+)/gi,
+      /follow[- ]?up[:\s]*([^\.]+)/gi,
+      /continue[:\s]*([^\.]+)/gi,
+      /discontinue[:\s]*([^\.]+)/gi
+    ];
+    
+    recommendationPatterns.forEach(pattern => {
+      const matches = input.reportText.match(pattern);
+      if (matches && matches.length > 0) {
+        matches.slice(0, 3).forEach(match => {
+          findings.push(`Provider recommendation: ${match.trim()}`);
+        });
+      }
+    });
+    
+    // Generate contextual summary based on content
+    const contentLength = input.reportText.length;
+    const hasNumericValues = /\d+\.?\d*\s*(mg\/dl|mmhg|bpm|°f|°c|%)/gi.test(input.reportText);
+    const hasDateInfo = medicalValues.dates && medicalValues.dates.length > 0;
+    
+    if (contentLength > 500) {
+      summary = `This comprehensive medical report (${contentLength} characters) contains detailed clinical information`;
+      if (hasNumericValues) summary += ' with specific laboratory values and measurements';
+      if (hasDateInfo) summary += ` from ${medicalValues.dates.length} documented date(s)`;
+      summary += '. ';
+    } else if (contentLength > 100) {
+      summary = `This medical report contains clinical information and test results`;
+      if (hasNumericValues) summary += ' with measurable values';
+      summary += '. ';
     } else {
-      mockSummary = 'This medical report contains various test results and clinical findings. Please consult with your healthcare provider to discuss the results and any necessary follow-up actions.';
+      summary = 'This appears to be a brief medical summary or excerpt. ';
     }
     
-    // Add standard disclaimer
-    mockFindings.push('This is a demo analysis. For accurate medical interpretation, please consult your healthcare provider');
+    if (findings.length > 3) {
+      summary += `Multiple clinical findings are documented including ${findings.length} specific observations. `;
+    } else if (findings.length > 0) {
+      summary += `Several clinical findings are documented. `;
+    }
+    
+    summary += 'Please review these findings with your healthcare provider for proper medical interpretation and any necessary follow-up actions.';
+    
+    // Ensure we have meaningful findings
+    if (findings.length === 0) {
+      findings.push('Medical document processed successfully');
+      findings.push(`Document contains ${words.length} words across ${lines.length} lines`);
+      if (hasNumericValues) {
+        findings.push('Numerical measurements and values are present in the report');
+      }
+    }
+    
+    // Add API failure notice
+    findings.push('⚠️ Enhanced content-based analysis (OpenAI unavailable)');
     
     return {
-      summary: mockSummary || 'Medical report processed successfully. This is a demonstration mode - please consult your healthcare provider for accurate medical interpretation.',
-      keyFindings: mockFindings.length > 0 ? mockFindings : [
-        'Medical report contains test results and clinical information',
-        'Healthcare provider consultation recommended for proper interpretation',
-        'This is a demonstration of the AI medical report analysis feature'
-      ],
+      summary: summary || 'Medical report processed successfully using enhanced content analysis. Please consult your healthcare provider for accurate medical interpretation.',
+      keyFindings: findings,
       reportText: input.reportText,
     };
   }

@@ -26,6 +26,25 @@ interface AnalysisResult {
   summary: string;
   keyFindings: string[];
   reportText: string;
+  debugInfo?: {
+    analysisMethod?: string;
+    totalProcessingTime?: number;
+    aiProcessingTime?: number;
+    extractionDetails?: {
+      method: string;
+      fileSize: number;
+      processingTime: number;
+      extractedLength: number;
+    };
+    extractedLength?: number;
+    linesCount?: number;
+    wordsCount?: number;
+    hasNumericValues?: boolean;
+    medicalValues?: string[];
+    extractionSuccessful?: boolean;
+    openaiSuccess?: boolean;
+    openaiError?: string;
+  };
 }
 
 type ProcessingStage = 'uploading' | 'processing' | 'analyzing';
@@ -271,6 +290,8 @@ export default function MedicalReportsClient() {
             <ReportSummary
               summary={analysisResult.summary}
               keyFindings={analysisResult.keyFindings}
+              reportText={analysisResult.reportText}
+              debugInfo={analysisResult.debugInfo}
             />
             <QuestionAnswer reportText={analysisResult.reportText} />
             
