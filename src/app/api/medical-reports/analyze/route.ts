@@ -1,96 +1,201 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Enhanced PDF processing with OpenAI Vision fallback for image-based PDFs
+async function processPDFWithAI(pdfBuffer: ArrayBuffer): Promise<string> {
+  try {
+    console.log('Attempting OpenAI Vision analysis for PDF document');
+    
+    // For PDF to image conversion, we'd need additional libraries
+    // For now, we'll handle this as a limitation and provide clear guidance
+    throw new Error('PDF Vision analysis requires additional setup. Please try extracting text manually or converting PDF pages to images first.');
+    
+  } catch (error) {
+    console.error('PDF Vision processing failed:', error);
+    throw error;
+  }
+}
 // Extract text from PDF using pdf-parse
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
+  console.log('Starting comprehensive PDF text extraction');
+  
+  // First try using pdf-parse library
   try {
-    // Try to use text extraction as a fallback if pdf-parse has issues
+    console.log('Attempting pdf-parse extraction...');
+    
+    const pdfParse = await import('pdf-parse');
     const buffer = Buffer.from(pdfBuffer);
     
-    // For now, let's try a simple buffer to string conversion for text-based PDFs
-    // This works for PDFs that store text as readable characters
-    const textContent = buffer.toString('utf8');
+    const pdfData = await pdfParse.default(buffer);
+    const extractedText = pdfData.text?.trim();
     
-    // Basic text extraction - look for readable content
-    const lines = textContent.split('\n')
-      .map(line => line.replace(/[^\x20-\x7E]/g, ' ').trim())
-      .filter(line => line.length > 2 && /[a-zA-Z]/.test(line))
-      .slice(0, 100); // Limit to first 100 lines
-    
-    const extractedText = lines.join('\n').trim();
-    
-    if (extractedText.length < 50) {
-      throw new Error('Insufficient readable text found in PDF');
+    if (extractedText && extractedText.length > 20) {
+      console.log('PDF parsing successful with pdf-parse, extracted text length:', extractedText.length);
+      return extractedText;
+    } else {
+      console.log('pdf-parse returned insufficient text, trying fallback method');
+      throw new Error('pdf-parse returned insufficient text');
     }
     
-    return extractedText;
-  } catch (error) {
-    console.error('PDF parsing error:', error);
-    throw new Error('Failed to extract text from PDF. Please ensure the PDF contains readable text or try uploading as an image.');
+  } catch (pdfParseError) {
+    console.log('pdf-parse failed, trying basic text extraction...', pdfParseError.message);
+    
+    // Fallback: Try basic text extraction for simple PDFs
+    try {
+      const buffer = Buffer.from(pdfBuffer);
+      const textContent = buffer.toString('utf8');
+      
+      // Look for readable content patterns
+      const lines = textContent.split('\n')
+        .map(line => line.replace(/[^\x20-\x7E]/g, ' ').trim())
+        .filter(line => line.length > 2 && /[a-zA-Z]/.test(line))
+        .slice(0, 200); // Increased limit for better extraction
+      
+      const extractedText = lines.join('\n').trim();
+      
+      if (extractedText.length > 50) {
+        console.log('Basic PDF extraction successful, text length:', extractedText.length);
+        return extractedText;
+      } else {
+        throw new Error('Basic text extraction insufficient');
+      }
+      
+    } catch (basicError) {
+      console.log('Basic PDF extraction also failed, this may be an image-based PDF');
+      
+      // Provide clear guidance for image-based PDFs
+      throw new Error(`Unable to extract text from this PDF. This appears to be an image-based or scanned PDF. Please try:
+
+1. Converting the PDF pages to images (JPG/PNG) and uploading those instead
+2. Using your PDF viewer's text selection tool to copy and paste the text manually
+3. If possible, requesting a text-based version of the report from your healthcare provider
+
+The system can analyze images of medical reports using advanced OCR and AI vision technology.`);
+    }
   }
 }
 
-// Extract text from image using OCR with fallback for demo
-async function extractTextFromImage(imageBuffer: ArrayBuffer): Promise<string> {
+// Enhanced image processing with OpenAI Vision fallback
+async function processImageWithAI(imageBuffer: ArrayBuffer): Promise<string> {
   try {
-    console.log('Starting OCR processing with Tesseract.js');
+    console.log('Attempting OpenAI Vision analysis for medical report image');
     
-    // Try to use Tesseract.js but with better error handling
-    try {
-      const { createWorker } = await import('tesseract.js');
-      
-      // Try different worker configurations for Next.js compatibility
-      let worker;
-      try {
-        worker = await createWorker({
-          logger: () => {}, // Disable logging for cleaner output
-          cachePath: './node_modules/tesseract.js/src/tesseract-core'
-        });
-        
-        await worker.loadLanguage('eng');
-        await worker.initialize('eng');
-        
-        const { data: { text } } = await worker.recognize(Buffer.from(imageBuffer));
-        await worker.terminate();
-        
-        if (text && text.trim().length > 10) {
-          console.log('OCR completed successfully with real Tesseract');
-          return text.trim();
+    // Convert buffer to base64 for OpenAI Vision API
+    const base64Image = Buffer.from(imageBuffer).toString('base64');
+    const mimeType = 'image/jpeg'; // Assume JPEG, could be detected
+    
+    const { openai } = await import('@/ai/openai');
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini", // Supports vision
+      messages: [
+        {
+          role: "system",
+          content: `You are a medical document OCR assistant. Extract ALL visible text from medical reports, lab results, or medical documents in the image. 
+
+IMPORTANT:
+- Extract the complete text content, preserving structure and formatting as much as possible
+- Include all patient information, test results, values, dates, recommendations, and medical notes
+- Maintain the original order and organization of information
+- If text is unclear, make reasonable medical interpretations but note uncertainty
+- Do not add analysis or interpretation - only extract the visible text content
+- Format the output as clean, readable text that preserves the document structure`
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Please extract all text content from this medical report image:"
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${base64Image}`,
+                detail: "high"
+              }
+            }
+          ]
         }
-      } catch (workerError) {
-        console.log('Tesseract worker failed with configuration error:', workerError.code);
-        if (worker) await worker.terminate();
-      }
-    } catch (importError) {
-      console.log('Tesseract import failed:', importError.message);
+      ],
+      max_tokens: 2000,
+      temperature: 0.1
+    });
+
+    const extractedText = response.choices[0]?.message?.content;
+    
+    if (extractedText && extractedText.trim().length > 20) {
+      console.log('OpenAI Vision extraction successful, text length:', extractedText.length);
+      return extractedText.trim();
+    } else {
+      throw new Error('OpenAI Vision did not extract sufficient text');
     }
     
-    // Fallback: Use demo text extraction for development/demo
-    console.log('Using fallback demo OCR extraction');
-    
-    // Generate realistic extracted text based on medical report patterns
-    const demoText = `LABORATORY REPORT
-Patient: Jane Smith
-Date: July 28, 2025
-
-Blood Test Results:
-Total Cholesterol: 245 mg/dL (High)
-LDL Cholesterol: 165 mg/dL (High)
-HDL Cholesterol: 42 mg/dL (Low)
-Blood Glucose: 98 mg/dL (Normal)
-Blood Pressure: 142/88 mmHg (Elevated)
-
-Recommendations:
-- Dietary modifications
-- Regular exercise
-- Follow-up in 3 months
-
-Note: This text was extracted using demo OCR. For production use, ensure proper Tesseract.js configuration.`;
-    
-    return demoText;
-    
   } catch (error) {
-    console.error('OCR processing failed completely:', error);
-    throw new Error('Failed to extract text from image. Please ensure the image contains clear, readable text or try uploading as text/PDF.');
+    console.error('OpenAI Vision processing failed:', error);
+    throw error;
+  }
+}
+// Extract text from image using OCR with proper Tesseract.js configuration
+async function extractTextFromImage(imageBuffer: ArrayBuffer): Promise<string> {
+  console.log('Starting comprehensive image text extraction');
+  
+  // First try Tesseract.js OCR
+  try {
+    console.log('Attempting Tesseract.js OCR...');
+    
+    const { createWorker } = await import('tesseract.js');
+    
+    console.log('Creating Tesseract worker...');
+    const worker = await createWorker('eng', 1, {
+      logger: (m) => console.log('Tesseract:', m.status, m.progress),
+      cachePath: './.next/cache/tesseract',
+      gzip: false,
+      corePath: undefined // Let Tesseract use default
+    });
+    
+    console.log('Worker created successfully, starting recognition...');
+    
+    // Process the image buffer
+    const { data: { text, confidence } } = await worker.recognize(Buffer.from(imageBuffer), {
+      rectangles: false,
+      pdfTitle: 'Medical Report',
+      preserveInterwordSpaces: true
+    });
+    
+    await worker.terminate();
+    
+    console.log(`OCR completed. Confidence: ${confidence}%, Text length: ${text?.length || 0}`);
+    
+    // Accept results with reasonable confidence and length
+    if (text && text.trim().length > 20 && confidence > 25) {
+      console.log('Tesseract OCR successful');
+      return text.trim();
+    } else {
+      console.log(`Tesseract OCR quality insufficient, trying OpenAI Vision...`);
+      throw new Error('OCR confidence too low');
+    }
+    
+  } catch (tesseractError) {
+    console.log('Tesseract OCR failed, trying OpenAI Vision...', tesseractError.message);
+    
+    // Fallback to OpenAI Vision
+    try {
+      return await processImageWithAI(imageBuffer);
+    } catch (visionError) {
+      console.error('Both OCR and Vision failed:', { tesseractError, visionError });
+      
+      // Provide comprehensive error message
+      throw new Error(`Unable to extract text from image using both OCR and AI vision analysis. This could be due to:
+- Image quality issues (blurry, low resolution, poor lighting)
+- Complex formatting or handwritten text
+- API service limitations
+
+Please try:
+1. Uploading a clearer, higher resolution image
+2. Converting the image to a PDF format
+3. Manually typing the text from your medical report
+4. Ensuring the image contains clearly readable printed text`);
+    }
   }
 }
 

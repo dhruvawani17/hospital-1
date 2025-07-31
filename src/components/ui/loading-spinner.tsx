@@ -63,17 +63,52 @@ interface ProcessingLoaderProps {
 }
 
 export function ProcessingLoader({ stage, fileName, progress, className }: ProcessingLoaderProps) {
-  const stageMessages = {
-    uploading: 'Uploading file...',
-    processing: 'Extracting text...',
-    analyzing: 'Analyzing report...'
+  const getStageInfo = () => {
+    const fileExtension = fileName?.split('.').pop()?.toLowerCase();
+    
+    switch (stage) {
+      case 'uploading':
+        return {
+          message: 'Uploading file...',
+          icon: '📤',
+          detail: fileName ? `Processing ${fileName}` : 'Preparing file for analysis'
+        };
+      case 'processing':
+        if (fileExtension === 'pdf') {
+          return {
+            message: 'Extracting text from PDF...',
+            icon: '📄',
+            detail: 'Using advanced PDF text extraction'
+          };
+        } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension || '')) {
+          return {
+            message: 'Reading image content...',
+            icon: '👁️',
+            detail: 'Using OCR and AI vision technology'
+          };
+        } else {
+          return {
+            message: 'Processing document...',
+            icon: '🔍',
+            detail: 'Extracting text content'
+          };
+        }
+      case 'analyzing':
+        return {
+          message: 'Analyzing medical report...',
+          icon: '🧠',
+          detail: 'AI is generating insights and summary'
+        };
+      default:
+        return {
+          message: 'Processing...',
+          icon: '⚙️',
+          detail: 'Working on your request'
+        };
+    }
   };
 
-  const stageIcons = {
-    uploading: '📤',
-    processing: '🔍',
-    analyzing: '🧠'
-  };
+  const stageInfo = getStageInfo();
 
   return (
     <div className={cn('flex flex-col items-center justify-center p-8 space-y-6', className)}>
@@ -89,17 +124,20 @@ export function ProcessingLoader({ stage, fileName, progress, className }: Proce
              style={{ animationDuration: '2s' }} 
         />
         <div className="absolute inset-0 flex items-center justify-center text-2xl">
-          {stageIcons[stage]}
+          {stageInfo.icon}
         </div>
       </div>
 
       {/* Progress info */}
       <div className="text-center space-y-2">
         <div className="text-lg font-medium text-foreground">
-          {stageMessages[stage]}
+          {stageInfo.message}
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {stageInfo.detail}
         </div>
         {fileName && (
-          <div className="text-sm text-muted-foreground">
+          <div className="text-xs text-muted-foreground font-mono">
             {fileName}
           </div>
         )}

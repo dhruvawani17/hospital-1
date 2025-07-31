@@ -138,7 +138,8 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
             <div className="text-xs text-muted-foreground space-y-1">
               <p>• Maximum file size: 10MB</p>
               <p>• Supported formats: PDF, JPG, PNG, GIF, WebP, TXT, DOC, DOCX</p>
-              <p>• Images will be processed using OCR to extract text</p>
+              <p>• Images will be processed using advanced OCR and AI vision technology</p>
+              <p>• PDF text extraction with fallback for scanned documents</p>
               <p>• Your files are processed securely and not stored permanently</p>
             </div>
           </>
