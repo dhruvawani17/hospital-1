@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 // Mock Q&A function for demo purposes when API key is not available
 function createMockAnswer(question: string, reportText: string) {
   const questionLower = question.toLowerCase();
-  const reportLower = reportText.toLowerCase();
   
   let fallbackAnswer = '';
   
@@ -36,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if we have the required API key for AI analysis
-    const hasApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const hasApiKey = process.env.OPENAI_API_KEY;
     
     if (!hasApiKey) {
       console.log('No API key found, using mock Q&A for demo purposes');

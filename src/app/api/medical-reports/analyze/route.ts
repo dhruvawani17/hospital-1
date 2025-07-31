@@ -238,7 +238,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if we have the required API key for AI analysis
-    const hasApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const hasApiKey = process.env.OPENAI_API_KEY;
     
     if (!hasApiKey) {
       console.log('No API key found, using mock analysis for demo purposes');
