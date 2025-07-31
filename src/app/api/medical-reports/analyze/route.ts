@@ -237,27 +237,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if we have the required API key for AI analysis
-    const hasApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    // Try OpenAI first (preferred), then Google AI, then mock analysis
+    const hasOpenAI = process.env.OPENAI_API_KEY;
+    const hasGoogleAI = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     
-    if (!hasApiKey) {
-      console.log('No API key found, using mock analysis for demo purposes');
-      // Use mock analysis when API key is not available
-      const analysis = createMockAnalysis(reportText);
-      return NextResponse.json(analysis);
+    if (hasOpenAI) {
+      console.log('Using OpenAI for medical analysis');
+      try {
+        const { analyzeMedicalReportWithOpenAI } = await import('@/lib/openai-medical');
+        const analysis = await analyzeMedicalReportWithOpenAI({ reportText });
+        return NextResponse.json(analysis);
+      } catch (error) {
+        console.warn('OpenAI analysis failed, trying Google AI fallback:', error);
+        // Fall through to Google AI
+      }
     }
-
-    // Try to use real AI analysis
-    try {
-      const { analyzeMedicalReport } = await import('@/ai/flows/medicalReportFlow');
-      const analysis = await analyzeMedicalReport({ reportText });
-      return NextResponse.json(analysis);
-    } catch (error) {
-      console.warn('AI analysis failed, falling back to mock analysis:', error);
-      // Fall back to mock analysis if AI fails
-      const analysis = createMockAnalysis(reportText);
-      return NextResponse.json(analysis);
+    
+    if (hasGoogleAI) {
+      console.log('Using Google AI for medical analysis');
+      try {
+        const { analyzeMedicalReport } = await import('@/ai/flows/medicalReportFlow');
+        const analysis = await analyzeMedicalReport({ reportText });
+        return NextResponse.json(analysis);
+      } catch (error) {
+        console.warn('Google AI analysis failed, falling back to mock analysis:', error);
+        // Fall through to mock analysis
+      }
     }
+    
+    // Use mock analysis when no API keys are available or all AI services fail
+    console.log('No AI services available, using mock analysis for demo purposes');
+    const analysis = createMockAnalysis(reportText);
+    return NextResponse.json(analysis);
   } catch (error) {
     console.error('Medical report analysis error:', error);
     return NextResponse.json(

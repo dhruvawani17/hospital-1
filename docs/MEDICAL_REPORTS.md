@@ -6,7 +6,7 @@ This document explains the AI-powered medical report analysis feature that allow
 
 - **File Upload Support**: Accepts PDF, images (JPG, PNG, GIF, WebP), and text files up to 10MB
 - **Text Input**: Alternative option to paste medical report text directly
-- **AI-Powered Analysis**: Generates comprehensive summaries and key findings
+- **AI-Powered Analysis**: Generates comprehensive summaries and key findings using OpenAI or Google AI
 - **Interactive Q&A**: Chat interface to ask questions about the uploaded report
 - **Medical Disclaimers**: Proper disclaimers emphasizing the need for professional medical consultation
 - **Responsive Design**: Works across desktop and mobile devices
@@ -27,8 +27,9 @@ This document explains the AI-powered medical report analysis feature that allow
 
 ### AI Integration
 
-- Uses Genkit with Google AI (Gemini 2.0 Flash) for medical analysis
-- Falls back to pattern-matching mock responses when API key is not available
+- **Primary**: OpenAI GPT-4o Mini for medical analysis and Q&A
+- **Fallback**: Genkit with Google AI (Gemini 2.0 Flash) for medical analysis
+- **Demo Mode**: Pattern-matching mock responses when no API keys are available
 - Specialized medical prompting for accurate and safe responses
 
 ## Setup Instructions
@@ -36,21 +37,32 @@ This document explains the AI-powered medical report analysis feature that allow
 ### Prerequisites
 
 1. Node.js (version 18 or higher)
-2. Google AI API key (optional - demo mode works without it)
+2. OpenAI API key (recommended) or Google AI API key (fallback)
 
 ### Environment Variables
 
 Create a `.env.local` file in the root directory:
 
 ```bash
-# Optional: For full AI functionality
+# Primary: OpenAI API key (recommended)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Fallback: Google AI API key
 GEMINI_API_KEY=your_google_ai_api_key_here
 # OR
 GOOGLE_API_KEY=your_google_ai_api_key_here
 ```
 
-### Getting a Google AI API Key
+### Getting API Keys
 
+#### OpenAI API Key (Recommended)
+1. Visit [OpenAI Platform](https://platform.openai.com/)
+2. Sign in with your account
+3. Go to API Keys section
+4. Create a new API key
+5. Copy the key to your environment variables
+
+#### Google AI API Key (Fallback)
 1. Visit [Google AI Studio](https://aistudio.google.com/)
 2. Sign in with your Google account
 3. Create a new API key
@@ -58,7 +70,7 @@ GOOGLE_API_KEY=your_google_ai_api_key_here
 
 ### Demo Mode
 
-The feature works in demo mode even without an API key by providing intelligent pattern-matching responses based on common medical terms and scenarios.
+The feature works in demo mode even without API keys by providing intelligent pattern-matching responses based on common medical terms and scenarios.
 
 ## Usage
 
@@ -73,6 +85,7 @@ The feature works in demo mode even without an API key by providing intelligent 
 - All medical disclaimers emphasize the need for professional consultation
 - No specific medical advice or diagnoses are provided
 - Focus on explanation and understanding rather than medical interpretation
+- API keys are securely stored in backend environment variables
 
 ## Medical Disclaimers
 
@@ -84,6 +97,12 @@ This feature is designed for educational and informational purposes only:
 - All responses include appropriate medical disclaimers
 
 ## Technical Details
+
+### AI Service Priority
+
+1. **OpenAI GPT-4o Mini** (Primary): Used when `OPENAI_API_KEY` is available
+2. **Google AI Gemini** (Fallback): Used when `GEMINI_API_KEY` or `GOOGLE_API_KEY` is available
+3. **Mock Analysis** (Demo): Used when no API keys are available
 
 ### File Processing
 
@@ -114,6 +133,12 @@ This feature is designed for educational and informational purposes only:
 
 ### Customizing AI Responses
 
+#### OpenAI Prompts
+1. Modify prompts in `src/lib/openai-medical.ts`
+2. Adjust model parameters (temperature, max_tokens, etc.)
+3. Update fallback responses in API routes
+
+#### Google AI Prompts
 1. Modify prompts in `src/ai/flows/medicalReportFlow.ts`
 2. Update fallback responses in API routes
 3. Adjust medical disclaimer text as needed

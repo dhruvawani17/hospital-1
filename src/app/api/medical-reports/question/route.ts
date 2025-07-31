@@ -35,27 +35,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if we have the required API key for AI analysis
-    const hasApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    // Try OpenAI first (preferred), then Google AI, then mock Q&A
+    const hasOpenAI = process.env.OPENAI_API_KEY;
+    const hasGoogleAI = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     
-    if (!hasApiKey) {
-      console.log('No API key found, using mock Q&A for demo purposes');
-      // Use mock Q&A when API key is not available
-      const answer = createMockAnswer(question, reportText);
-      return NextResponse.json({ answer });
+    if (hasOpenAI) {
+      console.log('Using OpenAI for medical Q&A');
+      try {
+        const { answerMedicalQuestionWithOpenAI } = await import('@/lib/openai-medical');
+        const result = await answerMedicalQuestionWithOpenAI({ question, reportText });
+        return NextResponse.json({ answer: result.answer });
+      } catch (error) {
+        console.warn('OpenAI Q&A failed, trying Google AI fallback:', error);
+        // Fall through to Google AI
+      }
     }
-
-    // Try to use real AI Q&A
-    try {
-      const { answerMedicalQuestion } = await import('@/ai/flows/medicalReportFlow');
-      const result = await answerMedicalQuestion({ question, reportText });
-      return NextResponse.json({ answer: result.answer });
-    } catch (error) {
-      console.warn('AI Q&A failed, falling back to mock response:', error);
-      // Fall back to mock Q&A if AI fails
-      const answer = createMockAnswer(question, reportText);
-      return NextResponse.json({ answer });
+    
+    if (hasGoogleAI) {
+      console.log('Using Google AI for medical Q&A');
+      try {
+        const { answerMedicalQuestion } = await import('@/ai/flows/medicalReportFlow');
+        const result = await answerMedicalQuestion({ question, reportText });
+        return NextResponse.json({ answer: result.answer });
+      } catch (error) {
+        console.warn('Google AI Q&A failed, falling back to mock response:', error);
+        // Fall through to mock Q&A
+      }
     }
+    
+    // Use mock Q&A when no API keys are available or all AI services fail
+    console.log('No AI services available, using mock Q&A for demo purposes');
+    const answer = createMockAnswer(question, reportText);
+    return NextResponse.json({ answer });
   } catch (error) {
     console.error('Medical question answering error:', error);
     return NextResponse.json(
