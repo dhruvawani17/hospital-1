@@ -58,7 +58,7 @@ This project consists of three main components:
 
 - **Node.js** (version 18 or higher)
 - **npm** or **yarn** package manager
-- **Java** (for backend utilities, optional)
+- **Java** (for backend utilities)
 - **Google AI API Key** (optional - demo mode available)
 
 ### Installation
@@ -221,9 +221,7 @@ npm run genkit:watch # Start Genkit with file watching
 - **Professional Consultation**: Users are encouraged to consult healthcare professionals
 - **Secure Processing**: All patient data is handled with healthcare privacy standards
 
-## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 📞 Support & Contact
 
