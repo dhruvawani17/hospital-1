@@ -29,7 +29,7 @@ export function Footer() {
             <ul className="space-y-2 text-sm">
               <li><Link href="/services" className="text-muted-foreground hover:text-primary transition-colors">{t('ourServices')}</Link></li>
               <li><Link href="/book-appointment" className="text-muted-foreground hover:text-primary transition-colors">{t('bookAppointment')}</Link></li>
-              <li><Link href="/#faq" className="text-muted-foreground hover:text-primary transition-colors">{t('faq')}</Link></li>
+              <li><Link href="/faq" className="text-muted-foreground hover:text-primary transition-colors">{t('faq')}</Link></li>
               <li><Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">{t('contactUs')}</Link></li>
             </ul>
           </div>
