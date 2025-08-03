@@ -8,9 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { MapPin, Phone, Mail, Clock } from 'lucide-react';
 import { APP_NAME } from '@/lib/constants';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function ContactClient() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -19,16 +23,56 @@ export default function ContactClient() {
     subject: '',
     message: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('Contact form submitted:', formData);
+    setIsSubmitting(true);
+
+    try {
+      // Save the form data to Firebase Firestore
+      await addDoc(collection(db, 'contactSubmissions'), {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        subject: formData.subject,
+        message: formData.message,
+        submittedAt: serverTimestamp(),
+        status: 'pending'
+      });
+
+      // Show success message
+      toast({
+        title: "Message Sent Successfully!",
+        description: "Thank you for contacting us. We'll get back to you soon.",
+      });
+
+      // Reset form
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        subject: '',
+        message: ''
+      });
+
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to send your message. Please try again later.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -72,7 +116,7 @@ export default function ContactClient() {
           <Card>
             <CardHeader>
               <CardTitle>Contact Information</CardTitle>
-            </CardHeader>
+            </CardHeader> 
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
                 <Phone className="h-5 w-5 text-primary" />
@@ -196,8 +240,8 @@ export default function ContactClient() {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full">
-                  Send Message
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? "Sending..." : "Send Message"}
                 </Button>
               </form>
             </CardContent>
