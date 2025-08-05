@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Mock Q&A function for demo purposes when API key is not available
-function createMockAnswer(question: string, reportText: string) {
+function createMockAnswer(question: string, documentId: string) {
   const questionLower = question.toLowerCase();
-  const reportLower = reportText.toLowerCase();
   
   let fallbackAnswer = '';
   
@@ -26,34 +25,51 @@ function createMockAnswer(question: string, reportText: string) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { question, reportText } = body;
+    const { question, reportText, documentId } = body;
 
-    if (!question || !reportText) {
+    if (!question) {
       return NextResponse.json(
-        { error: 'Both question and report text are required' },
+        { error: 'Question is required' },
         { status: 400 }
       );
     }
 
-    // Check if we have the required API key for AI analysis
-    const hasApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    // For RAG system, we need documentId. If reportText is provided but no documentId,
+    // it means the frontend is still using the old format
+    if (!documentId && !reportText) {
+      return NextResponse.json(
+        { error: 'Document ID or report text is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if we have the required API key for RAG analysis
+    const hasApiKey = process.env.OPENAI_API_KEY;
     
     if (!hasApiKey) {
-      console.log('No API key found, using mock Q&A for demo purposes');
+      console.log('No OpenAI API key found, using mock Q&A for demo purposes');
       // Use mock Q&A when API key is not available
-      const answer = createMockAnswer(question, reportText);
+      const answer = createMockAnswer(question, documentId || 'demo');
       return NextResponse.json({ answer });
     }
 
-    // Try to use real AI Q&A
+    // Try to use RAG-based Q&A
     try {
-      const { answerMedicalQuestion } = await import('@/ai/flows/medicalReportFlow');
-      const result = await answerMedicalQuestion({ question, reportText });
-      return NextResponse.json({ answer: result.answer });
+      const { answerRagMedicalQuestion } = await import('@/ai/flows/ragMedicalReportFlow');
+      
+      // If we have documentId, use RAG Q&A
+      if (documentId) {
+        const result = await answerRagMedicalQuestion({ question, documentId });
+        return NextResponse.json({ answer: result.answer });
+      } else {
+        // Fallback for old format - still provide a helpful response
+        const answer = 'Please re-analyze your medical report first to enable RAG-based question answering. This will provide more accurate responses based on your specific document.';
+        return NextResponse.json({ answer });
+      }
     } catch (error) {
-      console.warn('AI Q&A failed, falling back to mock response:', error);
-      // Fall back to mock Q&A if AI fails
-      const answer = createMockAnswer(question, reportText);
+      console.warn('RAG Q&A failed, falling back to mock response:', error);
+      // Fall back to mock Q&A if RAG fails
+      const answer = createMockAnswer(question, documentId || 'demo');
       return NextResponse.json({ answer });
     }
   } catch (error) {

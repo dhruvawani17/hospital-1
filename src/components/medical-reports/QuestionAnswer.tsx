@@ -16,10 +16,11 @@ interface Message {
 }
 
 interface QuestionAnswerProps {
-  reportText: string;
+  reportText: string; // Keep for backward compatibility and context display
+  documentId?: string; // Add for RAG system
 }
 
-export function QuestionAnswer({ reportText }: QuestionAnswerProps) {
+export function QuestionAnswer({ reportText, documentId }: QuestionAnswerProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -67,7 +68,8 @@ export function QuestionAnswer({ reportText }: QuestionAnswerProps) {
         },
         body: JSON.stringify({
           question,
-          reportText,
+          reportText, // Keep for backward compatibility 
+          documentId, // Add for RAG system
         }),
       });
 

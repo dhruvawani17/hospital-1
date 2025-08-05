@@ -26,6 +26,7 @@ interface AnalysisResult {
   summary: string;
   keyFindings: string[];
   reportText: string;
+  documentId: string; // Added for RAG system
 }
 
 type ProcessingStage = 'uploading' | 'processing' | 'analyzing';
@@ -272,7 +273,10 @@ export default function MedicalReportsClient() {
               summary={analysisResult.summary}
               keyFindings={analysisResult.keyFindings}
             />
-            <QuestionAnswer reportText={analysisResult.reportText} />
+            <QuestionAnswer 
+              reportText={analysisResult.reportText} 
+              documentId={analysisResult.documentId}
+            />
             
             <div className="flex justify-center">
               <Button variant="outline" onClick={resetAnalysis}>

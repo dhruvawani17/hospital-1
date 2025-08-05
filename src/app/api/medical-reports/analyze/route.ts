@@ -1,22 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
+import { writeFile, unlink } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
-// Extract text from PDF using pdf-parse
+// Extract text from PDF using LangChain PDFLoader (similar to pdf-rag-code)
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
+  let tempFilePath: string | null = null;
+  
   try {
-    // Try to use text extraction as a fallback if pdf-parse has issues
+    // Create temporary file for PDFLoader
     const buffer = Buffer.from(pdfBuffer);
+    tempFilePath = join(tmpdir(), `temp_pdf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.pdf`);
     
-    // For now, let's try a simple buffer to string conversion for text-based PDFs
-    // This works for PDFs that store text as readable characters
-    const textContent = buffer.toString('utf8');
+    await writeFile(tempFilePath, buffer);
     
-    // Basic text extraction - look for readable content
-    const lines = textContent.split('\n')
-      .map(line => line.replace(/[^\x20-\x7E]/g, ' ').trim())
-      .filter(line => line.length > 2 && /[a-zA-Z]/.test(line))
-      .slice(0, 100); // Limit to first 100 lines
+    // Use LangChain PDFLoader (same as pdf-rag-code)
+    const loader = new PDFLoader(tempFilePath);
+    const docs = await loader.load();
     
-    const extractedText = lines.join('\n').trim();
+    // Combine all pages into single text
+    const extractedText = docs.map(doc => doc.pageContent).join('\n\n').trim();
     
     if (extractedText.length < 50) {
       throw new Error('Insufficient readable text found in PDF');
@@ -26,6 +30,15 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   } catch (error) {
     console.error('PDF parsing error:', error);
     throw new Error('Failed to extract text from PDF. Please ensure the PDF contains readable text or try uploading as an image.');
+  } finally {
+    // Clean up temporary file
+    if (tempFilePath) {
+      try {
+        await unlink(tempFilePath);
+      } catch (cleanupError) {
+        console.warn('Failed to clean up temporary file:', cleanupError);
+      }
+    }
   }
 }
 
@@ -134,6 +147,9 @@ function createMockAnalysis(reportText: string) {
   // Add standard disclaimer
   mockFindings.push('This is a demo analysis. For accurate medical interpretation, please consult your healthcare provider');
   
+  // Generate a mock document ID for compatibility with RAG system
+  const mockDocumentId = `demo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
   return {
     summary: mockSummary || 'Medical report processed successfully. This is a demonstration mode - please consult your healthcare provider for accurate medical interpretation.',
     keyFindings: mockFindings.length > 0 ? mockFindings : [
@@ -142,6 +158,7 @@ function createMockAnalysis(reportText: string) {
       'This is a demonstration of the AI medical report analysis feature'
     ],
     reportText: reportText,
+    documentId: mockDocumentId,
   };
 }
 
@@ -237,24 +254,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if we have the required API key for AI analysis
-    const hasApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    // Check if we have the required API key for RAG analysis
+    const hasApiKey = process.env.OPENAI_API_KEY;
     
     if (!hasApiKey) {
-      console.log('No API key found, using mock analysis for demo purposes');
+      console.log('No OpenAI API key found, using mock analysis for demo purposes');
       // Use mock analysis when API key is not available
       const analysis = createMockAnalysis(reportText);
       return NextResponse.json(analysis);
     }
 
-    // Try to use real AI analysis
+    // Try to use RAG-based AI analysis
     try {
-      const { analyzeMedicalReport } = await import('@/ai/flows/medicalReportFlow');
-      const analysis = await analyzeMedicalReport({ reportText });
+      const { analyzeRagMedicalReport } = await import('@/ai/flows/ragMedicalReportFlow');
+      const analysis = await analyzeRagMedicalReport(reportText);
       return NextResponse.json(analysis);
     } catch (error) {
-      console.warn('AI analysis failed, falling back to mock analysis:', error);
-      // Fall back to mock analysis if AI fails
+      console.warn('RAG analysis failed, falling back to mock analysis:', error);
+      // Fall back to mock analysis if RAG fails
       const analysis = createMockAnalysis(reportText);
       return NextResponse.json(analysis);
     }
