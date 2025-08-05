@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Mock Q&A function for demo purposes when API key is not available
-function createMockAnswer(question: string, documentId: string) {
+function createMockAnswer(question: string, _documentId: string) {
   const questionLower = question.toLowerCase();
   
   let fallbackAnswer = '';

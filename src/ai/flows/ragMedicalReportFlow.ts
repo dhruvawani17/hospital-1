@@ -141,7 +141,7 @@ Please provide your response in the following JSON format:
         summary: parsed.summary || 'Medical report analysis completed.',
         keyFindings: Array.isArray(parsed.keyFindings) ? parsed.keyFindings : ['Analysis completed - please consult healthcare provider for interpretation']
       };
-    } catch (parseError) {
+    } catch {
       // Fallback if JSON parsing fails
       return {
         summary: result.substring(0, 1000),
