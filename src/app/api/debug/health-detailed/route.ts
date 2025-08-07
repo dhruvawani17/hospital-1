@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
+import { API_CONFIG } from '@/lib/medical-reports-config';
 
 export async function GET() {
   try {
     // Test environment variables
     const envCheck = {
-      googleApiKey: !!process.env.GOOGLE_API_KEY,
-      qdrantUrl: !!process.env.QDRANT_URL,
-      qdrantApiKey: !!process.env.QDRANT_API_KEY,
-      googleApiKeyLength: process.env.GOOGLE_API_KEY?.length || 0,
-      qdrantUrl_value: process.env.QDRANT_URL ? 'Set' : 'Not Set',
+      googleApiKey: !!API_CONFIG.GOOGLE_API_KEY,
+      qdrantUrl: !!API_CONFIG.QDRANT_URL,
+      qdrantApiKey: !!API_CONFIG.QDRANT_API_KEY,
+      googleApiKeyLength: API_CONFIG.GOOGLE_API_KEY?.length || 0,
+      qdrantUrl_value: API_CONFIG.QDRANT_URL ? 'Set' : 'Not Set',
       nodeEnv: process.env.NODE_ENV,
+      source: 'hardcoded_in_code',
     };
 
     // Test Gemini AI connectivity
@@ -17,7 +19,7 @@ export async function GET() {
     try {
       const { ChatGoogleGenerativeAI } = await import('@langchain/google-genai');
       const model = new ChatGoogleGenerativeAI({
-        apiKey: process.env.GOOGLE_API_KEY,
+        apiKey: API_CONFIG.GOOGLE_API_KEY,
         model: 'gemini-1.5-flash',
       });
       await model.invoke('test');
@@ -31,8 +33,8 @@ export async function GET() {
     try {
       const { QdrantClient } = await import('@qdrant/js-client-rest');
       const client = new QdrantClient({
-        url: process.env.QDRANT_URL!,
-        apiKey: process.env.QDRANT_API_KEY,
+        url: API_CONFIG.QDRANT_URL,
+        apiKey: API_CONFIG.QDRANT_API_KEY,
       });
       await client.getCollections();
       qdrantCheck.status = true;
