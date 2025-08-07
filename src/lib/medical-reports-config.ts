@@ -1,6 +1,11 @@
 // Medical Reports Feature Configuration
 // Production-ready configuration for the AI-powered medical reports analysis
 
+// HARDCODED API KEYS - FOR TESTING ONLY
+const HARDCODED_GOOGLE_API_KEY = 'AIzaSyBBS18I7nOqVBvrmalSZzl0oo0YGxqGLlQ';
+const HARDCODED_QDRANT_URL = 'https://b898dbbc-9a7e-4aa3-adbd-a6d6434289cb.eu-central-1-0.aws.cloud.qdrant.io';
+const HARDCODED_QDRANT_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.lOjORKpFdPM55ulkCPbboM3QJ6-PsTvrSYyzAewf-UU';
+
 export const MEDICAL_REPORTS_CONFIG = {
   // File upload constraints
   MAX_FILE_SIZE: parseInt(process.env.MAX_PDF_SIZE || '10485760'), // 10MB default
@@ -97,4 +102,11 @@ export const getErrorMessage = (key: ErrorMessage): string => {
 
 export const getSuccessMessage = (key: SuccessMessage): string => {
   return MEDICAL_REPORTS_CONFIG.SUCCESS_MESSAGES[key];
+};
+
+// Hardcoded API configuration
+export const API_CONFIG = {
+  GOOGLE_API_KEY: HARDCODED_GOOGLE_API_KEY,
+  QDRANT_URL: HARDCODED_QDRANT_URL,
+  QDRANT_API_KEY: HARDCODED_QDRANT_API_KEY,
 };

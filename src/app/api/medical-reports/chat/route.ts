@@ -4,7 +4,7 @@ import { GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI } from '@langchain
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { RetrievalQAChain } from 'langchain/chains';
 import { PromptTemplate } from '@langchain/core/prompts';
-import { MEDICAL_REPORTS_CONFIG } from '@/lib/medical-reports-config';
+import { MEDICAL_REPORTS_CONFIG, API_CONFIG } from '@/lib/medical-reports-config';
 import {
   checkRateLimit,
   getClientIP,
@@ -16,8 +16,8 @@ import {
   generateSessionId
 } from '@/lib/medical-reports-utils';
 
-const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
-const QDRANT_API_KEY = process.env.QDRANT_API_KEY;
+const QDRANT_URL = API_CONFIG.QDRANT_URL;
+const QDRANT_API_KEY = API_CONFIG.QDRANT_API_KEY;
 
 export async function POST(request: NextRequest) {
   const sessionId = generateSessionId();
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     // Initialize embeddings
     logActivity('initializing_embeddings_for_chat', { sessionId });
     const embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: process.env.GOOGLE_API_KEY,
+      apiKey: API_CONFIG.GOOGLE_API_KEY,
       modelName: MEDICAL_REPORTS_CONFIG.EMBEDDING_MODEL,
     });
 
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     // Initialize Gemini chat model
     logActivity('initializing_chat_model', { sessionId });
     const model = new ChatGoogleGenerativeAI({
-      apiKey: process.env.GOOGLE_API_KEY,
+      apiKey: API_CONFIG.GOOGLE_API_KEY,
       model: MEDICAL_REPORTS_CONFIG.CHAT_MODEL,
       temperature: MEDICAL_REPORTS_CONFIG.TEMPERATURE,
     });

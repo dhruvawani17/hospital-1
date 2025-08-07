@@ -2,7 +2,7 @@
 // Utility functions for production-ready medical reports feature
 
 import { NextResponse } from 'next/server';
-import { MEDICAL_REPORTS_CONFIG, getErrorMessage } from './medical-reports-config';
+import { MEDICAL_REPORTS_CONFIG, API_CONFIG, getErrorMessage } from './medical-reports-config';
 
 // Rate limiting map to track requests per IP
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -92,10 +92,12 @@ export function validateEnvironment(): { isValid: boolean; missingVars: string[]
   const requiredVars = ['GOOGLE_API_KEY', 'QDRANT_URL'];
   const missingVars: string[] = [];
 
-  for (const varName of requiredVars) {
-    if (!process.env[varName]) {
-      missingVars.push(varName);
-    }
+  // Check hardcoded values instead of environment variables
+  if (!API_CONFIG.GOOGLE_API_KEY) {
+    missingVars.push('GOOGLE_API_KEY');
+  }
+  if (!API_CONFIG.QDRANT_URL) {
+    missingVars.push('QDRANT_URL');
   }
 
   return {
@@ -192,7 +194,7 @@ export async function performHealthCheck(): Promise<{
     
     const { ChatGoogleGenerativeAI } = await import('@langchain/google-genai');
     const model = new ChatGoogleGenerativeAI({
-      apiKey: process.env.GOOGLE_API_KEY,
+      apiKey: API_CONFIG.GOOGLE_API_KEY,
       model: MEDICAL_REPORTS_CONFIG.CHAT_MODEL,
     });
     await model.invoke('Health check');
@@ -210,8 +212,8 @@ export async function performHealthCheck(): Promise<{
     
     const { QdrantClient } = await import('@qdrant/js-client-rest');
     const client = new QdrantClient({
-      url: process.env.QDRANT_URL!,
-      apiKey: process.env.QDRANT_API_KEY,
+      url: API_CONFIG.QDRANT_URL,
+      apiKey: API_CONFIG.QDRANT_API_KEY,
     });
     await client.getCollections();
     services.qdrant = true;

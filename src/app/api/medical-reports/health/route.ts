@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { performHealthCheck } from '@/lib/medical-reports-utils';
-import { MEDICAL_REPORTS_CONFIG } from '@/lib/medical-reports-config';
+import { MEDICAL_REPORTS_CONFIG, API_CONFIG } from '@/lib/medical-reports-config';
 
 export async function GET() {
   try {
@@ -22,9 +22,9 @@ export async function GET() {
       environment: {
         nodeEnv: process.env.NODE_ENV,
         platform: process.platform,
-        hasGoogleApiKey: !!process.env.GOOGLE_API_KEY,
-        hasQdrantUrl: !!process.env.QDRANT_URL,
-        hasQdrantApiKey: !!process.env.QDRANT_API_KEY,
+        hasGoogleApiKey: !!API_CONFIG.GOOGLE_API_KEY,
+        hasQdrantUrl: !!API_CONFIG.QDRANT_URL,
+        hasQdrantApiKey: !!API_CONFIG.QDRANT_API_KEY,
       },
     };
 
