@@ -4,8 +4,9 @@ import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import { writeFile } from 'fs/promises';
 import { 
   MEDICAL_REPORTS_CONFIG, 
@@ -102,16 +103,12 @@ export async function POST(request: NextRequest) {
     // Create temporary file with sanitized name
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const tempDir = path.join(process.cwd(), 'temp');
+    // Use OS temp directory which works in all environments including serverless
+    const tempDir = os.tmpdir();
     const sanitizedFileName = sanitizeFileName(file.name);
     
-    // Ensure temp directory exists
-    if (!fs.existsSync(tempDir)) {
-      logActivity('creating_temp_directory', { sessionId });
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    
-    const tempFilePath = path.join(tempDir, `${sessionId}-${sanitizedFileName}`);
+    // No need to create temp directory - OS temp dir always exists
+    const tempFilePath = path.join(tempDir, `medical-report-${sessionId}-${sanitizedFileName}`);
     logActivity('saving_temp_file', { sessionId, tempFilePath });
     await writeFile(tempFilePath, buffer);
 
