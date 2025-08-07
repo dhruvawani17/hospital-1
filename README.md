@@ -6,7 +6,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.1-38B2AC?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A modern, comprehensive hospital management system built with Next.js, TypeScript, and AI-powered features. HealthFirst Connect streamlines hospital operations with intelligent appointment scheduling, medical report analysis, and patient management capabilities.
+A modern, comprehensive hospital management system built with Next.js, TypeScript, and AI-powered features. HealthFirst Connect streamlines hospital operations with intelligent appointment scheduling and patient management capabilities.
 
 ## ✨ Features
 
@@ -15,14 +15,13 @@ A modern, comprehensive hospital management system built with Next.js, TypeScrip
 - **Smart Appointment Scheduler**: Interactive calendar with AI-powered appointment suggestions
 - **Patient Management**: Complete patient information and reservation system
 - **Payment Processing**: Simulated payment system with receipt generation
-- **Medical Report Analysis**: AI-powered medical report summarization and Q&A using Google AI (Gemini 2.0)
 - **Real-time Chat**: Interactive chatbot for patient assistance and inquiries
 
 ### 🤖 AI-Powered Features
-- **Intelligent Report Analysis**: Upload medical reports (PDF, images, text) for AI-powered summaries
-- **Interactive Q&A**: Ask questions about medical reports with contextual AI responses
 - **Smart Appointment Suggestions**: AI recommends optimal appointment times based on availability
-- **Medical Disclaimers**: Proper safety disclaimers emphasizing professional medical consultation
+- **Intelligent Chatbot**: AI-powered patient assistance and inquiry handling
+- **Medical Report Analysis**: AI-powered PDF analysis using LangChain and Qdrant for intelligent report interpretation
+- **Automated Workflows**: Streamlined hospital operations with AI optimization
 
 ### 🎨 User Experience
 - **Responsive Design**: Optimized for desktop and mobile devices
@@ -44,13 +43,11 @@ This project consists of three main components:
 ### **Backend Utilities**
 - **Java Utilities**: Patient ID validation and data processing
 - **API Routes**: Next.js API routes for server-side functionality
-- **File Processing**: Support for PDF, image, and text file uploads
 
 ### **AI Integration**
-- **Google AI (Gemini 2.0)**: Medical report analysis and chat functionality
+- **Google AI (Gemini 2.0)**: Intelligent appointment scheduling and chatbot functionality
 - **Genkit Framework**: AI workflow management and prompt engineering
-- **OCR Support**: Text extraction from medical report images
-- **Fallback System**: Demo mode with pattern-matching responses
+- **Smart Recommendations**: AI-powered appointment time suggestions
 
 ## 🚀 Quick Start
 
@@ -83,14 +80,27 @@ This project consists of three main components:
    GEMINI_API_KEY=your_google_ai_api_key_here
    # OR
    GOOGLE_API_KEY=your_google_ai_api_key_here
+   
+   # For Medical Report Analysis feature
+   OPENAI_API_KEY=your_openai_api_key_here
+   QDRANT_URL=http://localhost:6333
    ```
 
-4. **Start the development server**
+4. **Set up Qdrant Vector Database** (for Medical Report Analysis)
+   ```bash
+   # Using Docker Compose
+   docker-compose -f docker-compose.qdrant.yml up -d
+   
+   # Or using Docker directly
+   docker run -d --name qdrant -p 6333:6333 -p 6334:6334 qdrant/qdrant:latest
+   ```
+
+5. **Start the development server**
    ```bash
    npm run dev
    ```
 
-5. **Open your browser**
+6. **Open your browser**
    
    Navigate to [http://localhost:9002](http://localhost:9002)
 
@@ -113,18 +123,25 @@ This project consists of three main components:
 5. Complete the simulated payment process
 6. Receive a digital receipt via email
 
-### Medical Report Analysis
-1. Go to **Medical Reports** section
-2. Upload a medical report (PDF, image, or text file up to 10MB)
-3. Click **Analyze Report** to get an AI-powered summary
-4. Use the Q&A interface to ask specific questions about your report
-5. Get instant, contextual responses with proper medical disclaimers
-
 ### Using the Chatbot
 1. Click the **Chat** button in the navigation
 2. Ask questions about hospital services, appointments, or general inquiries
 3. Receive intelligent responses powered by AI
 4. Get directed to appropriate hospital resources
+
+### Using Medical Report Analysis
+1. Navigate to **Medical Reports** in the navigation
+2. Upload a PDF medical report using the file upload interface
+3. Wait for the AI to process and analyze the document
+4. Ask questions about your medical report in natural language
+5. Receive detailed explanations of medical terms, test results, and findings
+6. Get insights presented in easy-to-understand language
+
+**Example Questions:**
+- "What are the key findings in this report?"
+- "Are there any abnormal values I should be concerned about?"
+- "Can you explain what these test results mean?"
+- "Should I follow up with any specific specialist?"
 
 ## 🛠️ Technologies Used
 
@@ -141,10 +158,11 @@ This project consists of three main components:
 - **Zod** - TypeScript-first schema validation
 
 ### AI & Data Processing
-- **Google AI (Gemini 2.0)** - Advanced language model for medical analysis
+- **Google AI (Gemini 2.0)** - Advanced language model for intelligent features
+- **OpenAI GPT** - Medical report analysis and interpretation
+- **LangChain** - AI application development framework
+- **Qdrant** - Vector database for semantic search and retrieval
 - **Genkit** - AI workflow framework
-- **Tesseract.js** - OCR for image text extraction
-- **PDF Parse** - PDF text extraction
 
 ### Backend & Utilities
 - **Firebase** - Authentication and real-time database
@@ -155,6 +173,13 @@ This project consists of three main components:
 - **ESLint** - Code linting and formatting
 - **PostCSS** - CSS processing and optimization
 - **Tailwind Animate** - Animation utilities
+
+## 🔌 API Endpoints
+
+### Email Services
+- **POST** `/api/send-confirmation-email`
+  - Send appointment confirmation emails
+  - Integrates with SendGrid for email delivery
 
 ## 🤝 Contributing
 

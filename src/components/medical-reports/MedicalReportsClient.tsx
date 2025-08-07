@@ -1,287 +1,406 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ProcessingLoader } from '@/components/ui/loading-spinner';
-import { FileUpload } from './FileUpload';
-import { ReportSummary } from './ReportSummary';
-import { QuestionAnswer } from './QuestionAnswer';
-import { 
-  FileText, 
-  Brain, 
-  MessageSquare, 
-  Upload, 
-  Loader2, 
-  AlertCircle,
-  CheckCircle2,
-  ArrowLeft
-} from 'lucide-react';
-import Link from 'next/link';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Upload, FileText, MessageCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
-interface AnalysisResult {
-  summary: string;
-  keyFindings: string[];
-  reportText: string;
+interface ChatMessage {
+  id: string;
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
 }
 
-type ProcessingStage = 'uploading' | 'processing' | 'analyzing';
+interface HealthCheck {
+  status: 'healthy' | 'unhealthy' | 'error';
+  services: {
+    environment: boolean;
+    gemini: boolean;
+    qdrant: boolean;
+  };
+  version?: string;
+  feature?: string;
+  configuration?: {
+    maxFileSize: string;
+    maxChunksPerDocument: number;
+    rateLimitPerMinute: number;
+    embeddingModel: string;
+    chatModel: string;
+    vectorDimension: number;
+  };
+  timestamp: string;
+}
 
-export default function MedicalReportsClient() {
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [reportText, setReportText] = useState('');
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [processingStage, setProcessingStage] = useState<ProcessingStage>('uploading');
+export function MedicalReportsClient() {
+  const { t } = useTranslation();
+  const [file, setFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isProcessed, setIsProcessed] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [question, setQuestion] = useState('');
+  const [isAsking, setIsAsking] = useState(false);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [currentStep, setCurrentStep] = useState<'upload' | 'analyze' | 'qa'>('upload');
+  const [healthCheck, setHealthCheck] = useState<HealthCheck | null>(null);
+  const [isCheckingHealth, setIsCheckingHealth] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = useCallback((file: File) => {
-    setUploadedFile(file);
-    setError(null);
-    setCurrentStep('analyze');
+  // Check system health on component mount
+  React.useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const response = await fetch('/api/medical-reports/health');
+        const health = await response.json();
+        setHealthCheck(health);
+      } catch (error) {
+        console.error('Health check failed:', error);
+        setHealthCheck({
+          status: 'error',
+          services: { environment: false, gemini: false, qdrant: false },
+          timestamp: new Date().toISOString(),
+        });
+      } finally {
+        setIsCheckingHealth(false);
+      }
+    };
+
+    checkHealth();
   }, []);
 
-  const handleTextInput = useCallback((text: string) => {
-    setReportText(text);
-    setError(null);
-    // Note: Removed auto-advance to analyze step for better UX
-    // Users now need to explicitly click submit
-  }, []);
-
-  const handleAnalyze = async () => {
-    if (!uploadedFile && !reportText.trim()) {
-      setError('Please upload a file or enter report text to analyze.');
-      return;
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile && selectedFile.type === 'application/pdf') {
+      setFile(selectedFile);
+      setError(null);
+      setIsProcessed(false);
+      setChatHistory([]);
+    } else {
+      setError('Please select a valid PDF file');
     }
+  };
 
-    setIsAnalyzing(true);
+  const handleUpload = async () => {
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadStatus('uploading');
     setError(null);
+
+    const formData = new FormData();
+    formData.append('pdf', file);
 
     try {
-      // Set initial processing stage
-      if (uploadedFile) {
-        setProcessingStage('uploading');
-      } else {
-        setProcessingStage('analyzing');
-      }
-
-      const formData = new FormData();
-      
-      if (uploadedFile) {
-        formData.append('file', uploadedFile);
-        
-        // Update progress stages for file uploads
-        setTimeout(() => setProcessingStage('processing'), 500);
-        setTimeout(() => setProcessingStage('analyzing'), 1500);
-      }
-      
-      if (reportText.trim()) {
-        formData.append('text', reportText);
-      }
-
-      const response = await fetch('/api/medical-reports/analyze', {
+      console.log('Uploading PDF...');
+      const response = await fetch('/api/medical-reports/upload', {
         method: 'POST',
         body: formData,
       });
 
+      console.log('Response status:', response.status);
+      const result = await response.json();
+      console.log('Response data:', result);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Analysis failed: ${response.statusText}`);
+        throw new Error(result.details || result.error || 'Failed to upload and process PDF');
       }
 
-      const result = await response.json();
-      setAnalysisResult(result);
-      setCurrentStep('qa');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to analyze report');
+      setUploadStatus('success');
+      setIsProcessed(true);
+      
+      // Add welcome message
+      const welcomeMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: `PDF has been successfully processed! I found ${result.documentsProcessed || 'several'} sections in your medical report. You can now ask questions about your medical report.`,
+        timestamp: new Date(),
+      };
+      setChatHistory([welcomeMessage]);
+    } catch (error) {
+      console.error('Upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload and process the PDF. Please try again.';
+      setError(errorMessage);
+      setUploadStatus('error');
     } finally {
-      setIsAnalyzing(false);
+      setIsUploading(false);
     }
   };
 
-  const resetAnalysis = () => {
-    setUploadedFile(null);
-    setReportText('');
-    setAnalysisResult(null);
+  const handleAskQuestion = async () => {
+    if (!question.trim() || !isProcessed) return;
+
+    setIsAsking(true);
     setError(null);
-    setCurrentStep('upload');
+
+    // Add user message to chat
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: question,
+      timestamp: new Date(),
+    };
+    setChatHistory(prev => [...prev, userMessage]);
+
+    try {
+      console.log('Asking question:', question);
+      const response = await fetch('/api/medical-reports/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question }),
+      });
+
+      console.log('Chat response status:', response.status);
+      const result = await response.json();
+      console.log('Chat response data:', result);
+
+      if (!response.ok) {
+        throw new Error(result.details || result.error || 'Failed to get answer');
+      }
+      
+      // Add assistant message to chat
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: result.answer,
+        timestamp: new Date(),
+      };
+      setChatHistory(prev => [...prev, assistantMessage]);
+      setQuestion('');
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get answer. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setIsAsking(false);
+    }
   };
 
-  const getStepProgress = () => {
-    switch (currentStep) {
-      case 'upload': return 0;
-      case 'analyze': return 50;
-      case 'qa': return 100;
-      default: return 0;
+  const resetAll = () => {
+    setFile(null);
+    setIsProcessed(false);
+    setUploadStatus('idle');
+    setChatHistory([]);
+    setQuestion('');
+    setError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-background to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
-      <div className="container mx-auto px-4 py-4 sm:py-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Home
-              </Link>
-            </Button>
-          </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-headline font-bold mb-2">Medical Report Analysis</h1>
-          <p className="text-base sm:text-lg text-muted-foreground">
-            Upload your medical reports and get AI-powered insights and answers to your questions.
-          </p>
-        </div>
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-primary mb-4">
+          Medical Report Analysis
+        </h1>
+        <p className="text-muted-foreground">
+          Upload your medical reports and ask questions to get detailed insights and explanations
+        </p>
+      </div>
 
-        {/* Progress Bar */}
-        <Card className="mb-6 sm:mb-8">
-          <CardContent className="pt-4 sm:pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-1 sm:gap-2">
-                <Upload className={`h-4 w-4 sm:h-5 sm:w-5 ${currentStep === 'upload' ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className={`text-xs sm:text-sm ${currentStep === 'upload' ? 'font-medium' : 'text-muted-foreground'}`}>Upload</span>
-              </div>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <Brain className={`h-4 w-4 sm:h-5 sm:w-5 ${currentStep === 'analyze' ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className={`text-xs sm:text-sm ${currentStep === 'analyze' ? 'font-medium' : 'text-muted-foreground'}`}>Analyze</span>
-              </div>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <MessageSquare className={`h-4 w-4 sm:h-5 sm:w-5 ${currentStep === 'qa' ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className={`text-xs sm:text-sm ${currentStep === 'qa' ? 'font-medium' : 'text-muted-foreground'}`}>Q&A</span>
-              </div>
-            </div>
-            <Progress value={getStepProgress()} className="h-2" />
+      {isCheckingHealth && (
+        <Card className="mb-6">
+          <CardContent className="flex items-center gap-2 p-4">
+            <LoadingSpinner className="h-4 w-4" />
+            <span>Checking system status...</span>
           </CardContent>
         </Card>
+      )}
 
-        {/* Error Display */}
-        {error && (
-          <Alert className="mb-6" variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+      {healthCheck && healthCheck.status !== 'healthy' && !isCheckingHealth && (
+        <Alert className="mb-6" variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <div className="space-y-2">
+              <p className="font-medium">System Setup Required</p>
+              <div className="text-sm space-y-1">
+                <div className="flex items-center gap-2">
+                  {healthCheck.services.environment ? '✅' : '❌'} Environment Configuration
+                </div>
+                <div className="flex items-center gap-2">
+                  {healthCheck.services.gemini ? '✅' : '❌'} Gemini AI Connection
+                </div>
+                <div className="flex items-center gap-2">
+                  {healthCheck.services.qdrant ? '✅' : '❌'} Qdrant Database Connection
+                </div>
+              </div>
+              {!healthCheck.services.qdrant && (
+                <div className="mt-3 p-3 bg-muted rounded-lg">
+                  <p className="text-sm font-medium mb-2">Database Connection Issue:</p>
+                  <p className="text-sm">Please check your Qdrant database configuration and ensure it's accessible.</p>
+                </div>
+              )}
+              {!healthCheck.services.gemini && (
+                <div className="mt-3 p-3 bg-muted rounded-lg">
+                  <p className="text-sm font-medium mb-2">AI Service Issue:</p>
+                  <p className="text-sm">Please check your Google Gemini API key configuration.</p>
+                </div>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
-        {/* Step 1: Upload */}
-        {currentStep === 'upload' && (
-          <div className="grid gap-6">
-            <FileUpload onFileUpload={handleFileUpload} />
+      {error && (
+        <Alert className="mb-6" variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {error}
+            {error.includes('Qdrant') && (
+              <div className="mt-2">
+                <p className="text-sm">To fix this:</p>
+                <ol className="list-decimal list-inside text-sm mt-1">
+                  <li>Start Docker Desktop</li>
+                  <li>Run: <code className="bg-muted px-1 rounded">docker-compose -f docker-compose.qdrant.yml up -d</code></li>
+                  <li>Wait for Qdrant to start and try again</li>
+                </ol>
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Upload Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            Upload Medical Report
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="pdf-upload">Select PDF File</Label>
+            <Input
+              id="pdf-upload"
+              type="file"
+              accept=".pdf"
+              onChange={handleFileSelect}
+              ref={fileInputRef}
+              disabled={isUploading}
+            />
+          </div>
+          
+          {file && (
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm">{file.name}</span>
+              <span className="text-xs text-muted-foreground">
+                ({(file.size / 1024 / 1024).toFixed(2)} MB)
+              </span>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleUpload}
+              disabled={!file || isUploading || (healthCheck ? healthCheck.status !== 'healthy' : true)}
+              className="flex-1"
+            >
+              {isUploading ? (
+                <>
+                  <LoadingSpinner className="mr-2 h-4 w-4" />
+                  Processing...
+                </>
+              ) : (
+                'Upload & Process PDF'
+              )}
+            </Button>
             
-            <div className="text-center">
-              <span className="text-muted-foreground">OR</span>
+            {(file || isProcessed) && (
+              <Button variant="outline" onClick={resetAll}>
+                Reset
+              </Button>
+            )}
+          </div>
+
+          {uploadStatus === 'success' && (
+            <Alert>
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertDescription>
+                PDF successfully uploaded and processed! You can now ask questions.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Chat Section */}
+      {isProcessed && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" />
+              Chat with Your Medical Report
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Chat History */}
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {chatHistory.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] p-3 rounded-lg ${
+                      message.type === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted'
+                    }`}
+                  >
+                    <p className="text-sm">{message.content}</p>
+                    <p className="text-xs opacity-70 mt-1">
+                      {message.timestamp.toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Enter Report Text
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Textarea
-                    placeholder="Paste your medical report text here..."
-                    value={reportText}
-                    onChange={(e) => handleTextInput(e.target.value)}
-                    className="min-h-[200px]"
-                  />
-                  {reportText.trim() && (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        Text entered ({reportText.length} characters)
-                      </div>
-                      <Button 
-                        onClick={() => setCurrentStep('analyze')} 
-                        className="w-full"
-                      >
-                        <Brain className="mr-2 h-4 w-4" />
-                        Continue to Analysis
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Step 2: Analyze */}
-        {currentStep === 'analyze' && (
-          <>
-            {isAnalyzing ? (
-              <Card>
-                <CardContent className="p-0">
-                  <ProcessingLoader 
-                    stage={processingStage}
-                    fileName={uploadedFile?.name}
-                    className="min-h-[300px]"
-                  />
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Brain className="h-5 w-5" />
-                    Ready to Analyze
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    {uploadedFile && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <FileText className="h-4 w-4" />
-                        <span>File: {uploadedFile.name}</span>
-                      </div>
-                    )}
-                    {reportText && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <FileText className="h-4 w-4" />
-                        <span>Text: {reportText.length} characters</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                    <Button onClick={handleAnalyze} disabled={isAnalyzing} className="flex-1 h-12 sm:h-10">
-                      <Brain className="mr-2 h-4 w-4" />
-                      Analyze Report
-                    </Button>
-                    <Button variant="outline" onClick={resetAnalysis} className="h-12 sm:h-10">
-                      Start Over
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
-
-        {/* Step 3: Results and Q&A */}
-        {currentStep === 'qa' && analysisResult && (
-          <div className="space-y-6">
-            <ReportSummary
-              summary={analysisResult.summary}
-              keyFindings={analysisResult.keyFindings}
-            />
-            <QuestionAnswer reportText={analysisResult.reportText} />
-            
-            <div className="flex justify-center">
-              <Button variant="outline" onClick={resetAnalysis}>
-                Analyze Another Report
+            {/* Question Input */}
+            <div className="flex gap-2">
+              <Textarea
+                placeholder="Ask a question about your medical report..."
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                disabled={isAsking}
+                className="flex-1"
+                rows={2}
+              />
+              <Button
+                onClick={handleAskQuestion}
+                disabled={!question.trim() || isAsking}
+                className="self-end"
+              >
+                {isAsking ? (
+                  <LoadingSpinner className="h-4 w-4" />
+                ) : (
+                  'Ask'
+                )}
               </Button>
             </div>
-          </div>
-        )}
-      </div>
+
+            <div className="text-xs text-muted-foreground">
+              <p>💡 Example questions:</p>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>What are the key findings in this report?</li>
+                <li>Are there any abnormal values?</li>
+                <li>What do these test results mean?</li>
+                <li>Should I be concerned about anything?</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

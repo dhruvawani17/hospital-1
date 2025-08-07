@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BriefcaseMedical, CalendarDays, LogIn, LogOut, UserCircle, Menu, Bot } from "lucide-react"; // Added Bot
+import { Home, BriefcaseMedical, CalendarDays, LogIn, LogOut, UserCircle, Menu, Bot, FileText } from "lucide-react"; // Added Bot and FileText
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { HealthFirstLogo } from "@/components/shared/icons";
@@ -18,6 +18,7 @@ const navLinks = [
   { href: "/", labelKey: "home", icon: Home },
   { href: "/services", labelKey: "services", icon: BriefcaseMedical },
   { href: "/book-appointment", labelKey: "bookAppointment", icon: CalendarDays },
+  { href: "/medical-reports", labelKey: "medicalReports", icon: FileText },
   { href: "/chat", labelKey: "chatbot", icon: Bot }, // Added Chatbot link
 ];
 

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Medical Reports Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        .loading { background: #fff3cd; }
+    </style>
+</head>
+<body>
+    <h1>Medical Reports Feature Test</h1>
+    
+    <div class="test loading" id="health-test">
+        <h3>🔍 Testing System Health...</h3>
+        <div id="health-result">Checking...</div>
+    </div>
+
+    <div class="test" id="instructions">
+        <h3>📋 Next Steps:</h3>
+        <ol>
+            <li>Make sure the development server is running on <a href="http://localhost:9002" target="_blank">http://localhost:9002</a></li>
+            <li>Go to <a href="http://localhost:9002/medical-reports" target="_blank">Medical Reports Page</a></li>
+            <li>Upload a PDF medical report</li>
+            <li>Ask questions about the report</li>
+        </ol>
+    </div>
+
+    <script>
+        async function testHealth() {
+            try {
+                const response = await fetch('http://localhost:9002/api/medical-reports/health');
+                const result = await response.json();
+                
+                const healthTest = document.getElementById('health-test');
+                const healthResult = document.getElementById('health-result');
+                
+                if (result.ready) {
+                    healthTest.className = 'test success';
+                    healthResult.innerHTML = `
+                        <strong>✅ System Ready!</strong><br>
+                        OpenAI: ${result.checks.openai ? '✅' : '❌'}<br>
+                        Qdrant: ${result.checks.qdrant_connection ? '✅' : '❌'}<br>
+                        Message: ${result.message}
+                    `;
+                } else {
+                    healthTest.className = 'test error';
+                    healthResult.innerHTML = `
+                        <strong>❌ System Not Ready</strong><br>
+                        OpenAI: ${result.checks.openai ? '✅' : '❌'}<br>
+                        Qdrant: ${result.checks.qdrant_connection ? '✅' : '❌'}<br>
+                        Message: ${result.message || 'Setup required'}
+                    `;
+                }
+            } catch (error) {
+                const healthTest = document.getElementById('health-test');
+                const healthResult = document.getElementById('health-result');
+                healthTest.className = 'test error';
+                healthResult.innerHTML = `<strong>❌ Connection Error:</strong> ${error.message}`;
+            }
+        }
+
+        // Test health when page loads
+        testHealth();
+        
+        // Retest every 10 seconds
+        setInterval(testHealth, 10000);
+    </script>
+</body>
+</html>

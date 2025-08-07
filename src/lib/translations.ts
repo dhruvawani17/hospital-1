@@ -4,6 +4,7 @@ export const translations = {
     home: "Home",
     services: "Services",
     bookAppointment: "Book Appointment", 
+    medicalReports: "Medical Reports",
     chatbot: "Chatbot",
     login: "Login",
     
@@ -115,6 +116,7 @@ export const translations = {
     home: "होम",
     services: "सेवाएं",
     bookAppointment: "अपॉइंटमेंट बुक करें",
+    medicalReports: "मेडिकल रिपोर्ट्स",
     chatbot: "चैटबॉट", 
     login: "लॉगिन",
     
@@ -226,6 +228,7 @@ export const translations = {
     home: "होम",
     services: "सेवा",
     bookAppointment: "अपॉइंटमेंट बुक करा",
+    medicalReports: "वैद्यकीय अहवाल",
     chatbot: "चॅटबॉट",
     login: "लॉगिन",
     

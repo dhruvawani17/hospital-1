@@ -40,6 +40,9 @@ next-env.d.ts
 .genkit/*
 .env*
 
+# temporary files
+/temp/
+
 # firebase
 firebase-debug.log
 firestore-debug.log
