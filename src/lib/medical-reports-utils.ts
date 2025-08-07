@@ -173,15 +173,23 @@ export async function performHealthCheck(): Promise<{
   status: 'healthy' | 'unhealthy';
   services: Record<string, boolean>;
   timestamp: string;
+  errors?: Record<string, string>;
 }> {
   const services: Record<string, boolean> = {};
+  const errors: Record<string, string> = {};
   
   // Check environment variables
   const envCheck = validateEnvironment();
   services.environment = envCheck.isValid;
+  if (!envCheck.isValid) {
+    errors.environment = `Missing: ${envCheck.missingVars.join(', ')}`;
+  }
   
-  // Check Gemini AI connection
+  // Check Gemini AI connection with timeout
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    
     const { ChatGoogleGenerativeAI } = await import('@langchain/google-genai');
     const model = new ChatGoogleGenerativeAI({
       apiKey: process.env.GOOGLE_API_KEY,
@@ -189,12 +197,17 @@ export async function performHealthCheck(): Promise<{
     });
     await model.invoke('Health check');
     services.gemini = true;
-  } catch {
+    clearTimeout(timeoutId);
+  } catch (error) {
     services.gemini = false;
+    errors.gemini = error instanceof Error ? error.message : 'Connection failed';
   }
   
-  // Check Qdrant connection
+  // Check Qdrant connection with timeout
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    
     const { QdrantClient } = await import('@qdrant/js-client-rest');
     const client = new QdrantClient({
       url: process.env.QDRANT_URL!,
@@ -202,8 +215,10 @@ export async function performHealthCheck(): Promise<{
     });
     await client.getCollections();
     services.qdrant = true;
-  } catch {
+    clearTimeout(timeoutId);
+  } catch (error) {
     services.qdrant = false;
+    errors.qdrant = error instanceof Error ? error.message : 'Connection failed';
   }
   
   const allHealthy = Object.values(services).every(status => status);
@@ -212,5 +227,6 @@ export async function performHealthCheck(): Promise<{
     status: allHealthy ? 'healthy' : 'unhealthy',
     services,
     timestamp: new Date().toISOString(),
+    ...(Object.keys(errors).length > 0 && { errors }),
   };
 }

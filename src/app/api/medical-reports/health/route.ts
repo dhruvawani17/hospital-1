@@ -19,6 +19,13 @@ export async function GET() {
         chatModel: MEDICAL_REPORTS_CONFIG.CHAT_MODEL,
         vectorDimension: MEDICAL_REPORTS_CONFIG.VECTOR_DIMENSION,
       },
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        platform: process.platform,
+        hasGoogleApiKey: !!process.env.GOOGLE_API_KEY,
+        hasQdrantUrl: !!process.env.QDRANT_URL,
+        hasQdrantApiKey: !!process.env.QDRANT_API_KEY,
+      },
     };
 
     const statusCode = healthStatus.status === 'healthy' ? 200 : 503;
