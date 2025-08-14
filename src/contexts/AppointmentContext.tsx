@@ -3,7 +3,8 @@
 
 import type { Appointment, AppointmentFormData, ReceiptData, Service } from "@/types";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { SERVICES_DATA, APP_NAME } from "@/lib/constants";
+import { SERVICES_DATA, APP_NAME, DOCTORS_DATA } from "@/lib/constants";
+import { confirmAndReleaseSlot } from "@/lib/appointments";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -84,6 +85,20 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [currentAppointment, setCurrentAppointment] = useState<Partial<AppointmentFormData> | null>(null);
   const [confirmedAppointments, setConfirmedAppointments] = useState<Appointment[]>([]);
   const [isLoadingAppointments, setIsLoadingAppointments] = useState(true);
+  const [bookingClientId, setBookingClientId] = useState<string>('');
+
+  // Initialize stable booking client id on mount to avoid hydration mismatch
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const k = 'bookingClientId';
+      let id = localStorage.getItem(k);
+      if (!id) {
+        id = `client-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+        localStorage.setItem(k, id);
+      }
+      setBookingClientId(id);
+    }
+  }, []);
 
   const fetchAppointments = useCallback(async (userId: string) => {
     console.log("[AppointmentContext] fetchAppointments called for userId:", userId);
@@ -142,7 +157,7 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   const confirmAppointment = useCallback(async (paymentDetails: { transactionId: string }): Promise<ReceiptData | null> => {
-    if (!user?.uid || !currentAppointment || !currentAppointment.serviceId || !currentAppointment.date || !currentAppointment.time || !currentAppointment.patientName || !currentAppointment.patientEmail) {
+    if (!user?.uid || !currentAppointment || !currentAppointment.serviceId || !currentAppointment.doctorId || !currentAppointment.date || !currentAppointment.time || !currentAppointment.patientName || !currentAppointment.patientEmail) {
       console.error("[AppointmentContext] Incomplete appointment data or user not logged in for confirmAppointment. Current appointment:", currentAppointment, "User:", user);
       toast({
         variant: "destructive",
@@ -163,10 +178,34 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return null;
     }
 
+    // Resolve doctor name
+    const doctor = DOCTORS_DATA.find(d => d.id === currentAppointment.doctorId);
+    if (!doctor) {
+      toast({ variant: "destructive", title: "Doctor Not Found", description: `Doctor with ID ${currentAppointment.doctorId} not found.` });
+      return null;
+    }
+
+    // Confirm slot lock and mark as booked to prevent double booking
+    const dateObj = new Date(currentAppointment.date);
+    const dateKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+    const lockResult = await confirmAndReleaseSlot({
+      serviceId: currentAppointment.serviceId,
+      doctorId: currentAppointment.doctorId,
+      date: dateKey,
+      time: currentAppointment.time,
+      userId: user.uid, // Use authenticated user ID for final confirmation
+    });
+    if (!lockResult.ok) {
+      toast({ variant: 'destructive', title: 'Slot No Longer Available', description: 'Please go back and pick another time.' });
+      return null;
+    }
+
     const newAppointmentDataToSave = {
       userId: user.uid,
       serviceId: currentAppointment.serviceId,
       serviceName: service.name,
+      doctorId: currentAppointment.doctorId,
+      doctorName: doctor.name,
       date: Timestamp.fromDate(new Date(currentAppointment.date)),
       time: currentAppointment.time,
       patientName: currentAppointment.patientName,
@@ -189,6 +228,8 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
         userId: user.uid,
         serviceId: newAppointmentDataToSave.serviceId,
         serviceName: newAppointmentDataToSave.serviceName,
+        doctorId: newAppointmentDataToSave.doctorId,
+        doctorName: newAppointmentDataToSave.doctorName,
         date: new Date(currentAppointment.date),
         time: newAppointmentDataToSave.time,
         patientName: newAppointmentDataToSave.patientName,

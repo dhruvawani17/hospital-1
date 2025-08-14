@@ -18,15 +18,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { useToast } from "@/hooks/use-toast";
 import { useAppointment } from '@/contexts/AppointmentContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { AppointmentFormData, Service } from '@/types';
-import { SERVICES_DATA, MOCK_TIME_SLOTS } from '@/lib/constants';
+import { SERVICES_DATA, MOCK_TIME_SLOTS, DOCTORS_DATA, SERVICE_DOCTORS } from '@/lib/constants';
+import { tryLockSlot, subscribeToDayLocks } from '@/lib/appointments';
 import { CalendarIcon, Clock, User, Mail, Phone, Loader2, BriefcaseMedical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
 const appointmentFormSchema = z.object({
   serviceId: z.string().min(1, "Please select a service."),
+  doctorId: z.string().min(1, "Please select a doctor."),
   date: z.date({ required_error: "Please select a date." }),
   time: z.string().min(1, "Please select a time slot."),
   patientName: z.string().min(2, "Name must be at least 2 characters."),
@@ -43,11 +46,14 @@ export function BookAppointmentClient() {
   const { t } = useTranslation();
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(currentAppointment?.date ? new Date(currentAppointment.date) : undefined);
+  const [lockedSlotsMap, setLockedSlotsMap] = useState<Record<string, any>>({});
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>(currentAppointment?.doctorId || "");
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
       serviceId: currentAppointment?.serviceId || "",
+      doctorId: currentAppointment?.doctorId || "",
       date: currentAppointment?.date ? new Date(currentAppointment.date) : undefined,
       time: currentAppointment?.time || "",
       patientName: currentAppointment?.patientName || "",
@@ -62,6 +68,56 @@ export function BookAppointmentClient() {
     }
   }, [currentAppointment, form]);
   
+  // Booking user id (persist for anonymous sessions)
+  const { user } = useAuth();
+  const [bookingUserId, setBookingUserId] = useState<string>('');
+  
+  // Initialize booking user ID on client side only to avoid hydration mismatch
+  useEffect(() => {
+    if (user?.uid) {
+      setBookingUserId(user.uid);
+    } else if (typeof window !== 'undefined') {
+      const k = 'bookingClientId';
+      let id = localStorage.getItem(k);
+      if (!id) {
+        id = `client-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+        localStorage.setItem(k, id);
+      }
+      setBookingUserId(id);
+    }
+  }, [user?.uid]);
+
+  function formatDateKey(d: Date) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  // Subscribe to locks for the chosen doctor and date
+  useEffect(() => {
+    if (!form.getValues('serviceId') || !selectedDoctorId || !selectedDate || !bookingUserId) return;
+    const dateKey = formatDateKey(selectedDate);
+    const unsub = subscribeToDayLocks(form.getValues('serviceId'), selectedDoctorId, dateKey, (locks) => {
+      setLockedSlotsMap(locks);
+    });
+    return () => unsub();
+  }, [form, selectedDoctorId, selectedDate, bookingUserId]);
+
+  const disabledSlots = useMemo(() => {
+    const set = new Set<string>();
+    const now = Date.now();
+    Object.values(lockedSlotsMap).forEach((lock: any) => {
+      const expires = lock.expiresAt?.toMillis?.() ? lock.expiresAt.toMillis() : 0;
+      const booked = !!lock.booked;
+      const lockedByOther = lock.lockedBy && lock.lockedBy !== bookingUserId;
+      if (booked || (lockedByOther && expires > now)) {
+        set.add(lock.time);
+      }
+    });
+    return set;
+  }, [lockedSlotsMap, bookingUserId]);
+  
 
   async function onSubmit(data: AppointmentFormValues) {
     updateAppointmentData(data);
@@ -71,6 +127,31 @@ export function BookAppointmentClient() {
     });
     router.push('/payment');
   }
+
+  const availableDoctors = useMemo(() => {
+    const serviceId = form.getValues('serviceId');
+    if (!serviceId) return [] as typeof DOCTORS_DATA;
+    const ids = SERVICE_DOCTORS[serviceId] || [];
+    return DOCTORS_DATA.filter(d => ids.includes(d.id));
+  }, [form.watch('serviceId')]);
+
+  const handleTimeSelect = async (slot: string) => {
+    const serviceId = form.getValues('serviceId');
+    if (!serviceId || !selectedDoctorId || !selectedDate || !bookingUserId) return;
+    if (disabledSlots.has(slot)) {
+      toast({ variant: 'destructive', title: 'Slot Unavailable', description: 'This time is no longer available. Please choose another.' });
+      return;
+    }
+    const dateKey = formatDateKey(selectedDate);
+    const res = await tryLockSlot({ serviceId, doctorId: selectedDoctorId, date: dateKey, time: slot, userId: bookingUserId });
+    if (!res.ok) {
+      toast({ variant: 'destructive', title: 'Could not reserve slot', description: res.reason || 'Please choose another time.' });
+      form.setValue('time', '');
+      return;
+    }
+    form.setValue('time', slot);
+    updateAppointmentData({ time: slot });
+  };
 
   return (
     <div className="container py-12 md:py-16">
@@ -96,6 +177,11 @@ export function BookAppointmentClient() {
                         field.onChange(value);
                         const service = SERVICES_DATA.find(s => s.id === value);
                         if (service) startNewAppointment(service); // Update context
+                        // Reset doctor/time on service change
+                        form.setValue('doctorId', '');
+                        setSelectedDoctorId('');
+                        form.setValue('time', '');
+                        setLockedSlotsMap({});
                       }} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder={t('chooseMedicalService')} /></SelectTrigger>
@@ -104,6 +190,42 @@ export function BookAppointmentClient() {
                         {SERVICES_DATA.map(service => (
                           <SelectItem key={service.id} value={service.id}>
                             {service.name} (₹{service.price.toFixed(2)})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Doctor Selection */}
+              <FormField
+                control={form.control}
+                name="doctorId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg font-semibold">Select Doctor</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        setSelectedDoctorId(value);
+                        updateAppointmentData({ doctorId: value });
+                        // Reset time when doctor changes
+                        form.setValue('time', '');
+                      }}
+                      disabled={!form.getValues('serviceId')}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger disabled={!form.getValues('serviceId')}>
+                          <SelectValue placeholder={form.getValues('serviceId') ? 'Choose a doctor' : 'Select service first'} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {availableDoctors.map(doc => (
+                          <SelectItem key={doc.id} value={doc.id}>
+                            {doc.name} — {doc.specialty}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -159,19 +281,22 @@ export function BookAppointmentClient() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-lg font-semibold flex items-center"><Clock className="mr-2 h-5 w-5 text-primary" />{t('appointmentTime')}</FormLabel>
-                       <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedDate}>
+                       <Select onValueChange={(v) => handleTimeSelect(v)} value={field.value} disabled={!selectedDate || !selectedDoctorId}>
                         <FormControl>
-                          <SelectTrigger disabled={!selectedDate}>
-                            <SelectValue placeholder={!selectedDate ? t('selectDateFirst') : t('selectTimeSlot')} />
+                          <SelectTrigger disabled={!selectedDate || !selectedDoctorId}>
+                            <SelectValue placeholder={!selectedDate ? t('selectDateFirst') : (!selectedDoctorId ? 'Select doctor first' : t('selectTimeSlot'))} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {MOCK_TIME_SLOTS.map(slot => (
-                            <SelectItem key={slot} value={slot}>{slot}</SelectItem>
+                            <SelectItem key={slot} value={slot} disabled={disabledSlots.has(slot)}>
+                              {slot}{disabledSlots.has(slot) ? ' — Unavailable' : ''}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       {!selectedDate && <FormDescription>{t('selectDateToEnable')}</FormDescription>}
+                      {selectedDate && !selectedDoctorId && <FormDescription>Select a doctor to see available times.</FormDescription>}
                       <FormMessage />
                     </FormItem>
                   )}

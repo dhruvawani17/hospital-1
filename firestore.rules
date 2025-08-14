@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is signed in
+    function isSignedIn() { 
+      return request.auth != null; 
+    }
+    
+    // Helper function to get lock document path
+    function lockPath(lockId) {
+      return /databases/$(database)/documents/slotLocks/$(lockId);
+    }
+
+    // Real-time slot locks for appointment booking
+    match /slotLocks/{lockId} {
+      // Any signed-in user can read locks to see availability
+      allow read: if isSignedIn();
+
+      // Create/update lock only by the owner
+      allow create, update: if isSignedIn()
+        && request.resource.data.lockedBy == request.auth.uid
+        && (
+          !exists(lockPath(lockId)) ||
+          get(lockPath(lockId)).data.lockedBy == request.auth.uid ||
+          get(lockPath(lockId)).data.expiresAt <= request.time
+        )
+        && (
+          // Ensure required fields are present
+          ('serviceId' in request.resource.data) &&
+          ('doctorId' in request.resource.data) &&
+          ('date' in request.resource.data) &&
+          ('time' in request.resource.data)
+        );
+
+      // No deletes from clients
+      allow delete: if false;
+    }
+
+    // Appointments: users can create/read their own appointments
+    match /appointments/{docId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() 
+        && request.resource.data.userId == request.auth.uid
+        && ('serviceId' in request.resource.data)
+        && ('doctorId' in request.resource.data)
+        && ('patientName' in request.resource.data)
+        && ('patientEmail' in request.resource.data);
+      allow update: if isSignedIn() 
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if false; // Prevent deletions, use status updates instead
+    }
+
+    // Deny all other document access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

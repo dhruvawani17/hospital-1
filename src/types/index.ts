@@ -16,6 +16,7 @@ export interface Service {
 
 export interface AppointmentFormData {
   serviceId: string;
+  doctorId: string; // Selected doctor under the chosen service
   date: Date; // Stays as Date for form handling, converted to Timestamp for Firestore
   time: string;
   patientName: string;
@@ -28,6 +29,8 @@ export interface Appointment {
   userId: string;
   serviceId: string;
   serviceName: string;
+  doctorId: string;
+  doctorName?: string;
   date: Date; // Converted from Firestore Timestamp on fetch
   time: string;
   patientName: string;

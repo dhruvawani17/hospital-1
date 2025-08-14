@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAppointment } from '@/contexts/AppointmentContext';
-import { SERVICES_DATA } from '@/lib/constants';
+import { SERVICES_DATA, DOCTORS_DATA } from '@/lib/constants';
 import type { Service } from '@/types';
 import { AlertCircle, CheckCircle, CreditCard, CalendarDays, User, BriefcaseMedical, DollarSign, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -88,7 +88,7 @@ export function PaymentClient() {
       router.push('/book-appointment');
       return;
     }
-    const service = SERVICES_DATA.find(s => s.id === currentAppointment.serviceId);
+  const service = SERVICES_DATA.find(s => s.id === currentAppointment.serviceId);
     if (service) {
       setServiceDetails(service);
     } else {
@@ -124,6 +124,7 @@ export function PaymentClient() {
       </div>
     );
   }
+  const doctor = currentAppointment?.doctorId ? DOCTORS_DATA.find(d => d.id === currentAppointment.doctorId) : null;
 
   const onSubmit = async (data: PaymentFormValues) => {
     setIsLoading(true);
@@ -162,6 +163,10 @@ export function PaymentClient() {
             <div className="flex justify-between">
               <span className="text-muted-foreground flex items-center"><BriefcaseMedical className="mr-2 h-4 w-4 text-primary"/>Service:</span>
               <strong>{serviceDetails.name}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground flex items-center"><User className="mr-2 h-4 w-4 text-primary"/>Doctor:</span>
+              <strong>{doctor ? doctor.name : 'Not selected'}</strong>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground flex items-center"><User className="mr-2 h-4 w-4 text-primary"/>Patient:</span>

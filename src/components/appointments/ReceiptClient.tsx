@@ -191,6 +191,15 @@ export function ReceiptClient() {
                 <strong className="text-base">{receipt.serviceName}</strong>
               </div>
             </div>
+            {receipt.doctorName && (
+              <div className="flex items-start">
+                <User className="h-5 w-5 text-primary mr-3 mt-1 shrink-0" />
+                <div>
+                  <span className="text-muted-foreground">Doctor:</span><br/>
+                  <strong className="text-base">{receipt.doctorName}</strong>
+                </div>
+              </div>
+            )}
             <div className="flex items-start">
               <DollarSign className="h-5 w-5 text-primary mr-3 mt-1 shrink-0" />
               <div>

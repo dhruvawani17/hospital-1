@@ -12,6 +12,7 @@ import {
   signOut as firebaseSignOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInAnonymously,
   updateProfile,
   type User as FirebaseUser,
   type AuthError
@@ -35,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
+  const [anonTried, setAnonTried] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
@@ -57,6 +59,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => unsubscribe();
   }, []);
+
+  // Ensure we have an authenticated session for Firestore rules by signing in anonymously if needed
+  useEffect(() => {
+    if (!loading && !user && !anonTried) {
+      setAnonTried(true);
+      signInAnonymously(auth).catch((error: AuthError) => {
+        console.warn("[AuthContext] Anonymous sign-in failed (enable in Firebase Console if required):", error?.message);
+      });
+    }
+  }, [loading, user, anonTried]);
 
   const handleAuthSuccess = useCallback(() => {
     const currentSearchParams = new URLSearchParams(window.location.search);

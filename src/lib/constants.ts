@@ -152,3 +152,13 @@ export const DOCTORS_DATA: Doctor[] = [
     dataAiHint: 'neurologist portrait', 
   },
 ];
+
+// Map each service to available doctors (by doctor IDs from DOCTORS_DATA)
+export const SERVICE_DOCTORS: Record<string, string[]> = {
+  'general-consultation': ['dr-emily-carter'],
+  'cardiology': ['dr-benjamin-lee'],
+  'pediatrics': ['dr-olivia-davis'],
+  'dermatology': ['dr-marcus-chen'],
+  'physiotherapy': ['dr-sophia-miller'],
+  'ophthalmology': ['dr-david-wilson'],
+};
