@@ -4,14 +4,16 @@
 import type { Appointment, AppointmentFormData, ReceiptData, Service } from "@/types";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { SERVICES_DATA, APP_NAME, DOCTORS_DATA } from "@/lib/constants";
-import { confirmAndReleaseSlot } from "@/lib/appointments";
+import { confirmAndReleaseSlot, freeUpSlot } from "@/lib/appointments";
 import { db } from "@/lib/firebase";
 import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   doc,
   updateDoc,
+  deleteDoc,
   query,
   where,
   Timestamp,
@@ -320,12 +322,60 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
         return;
     }
+    
     try {
+      console.log("[AppointmentContext] Starting cancellation for appointment ID:", appointmentId);
+      
+      // First, get the appointment details to extract slot information
       const appointmentRef = doc(db, "appointments", appointmentId);
-      await updateDoc(appointmentRef, {
-        status: 'cancelled'
+      const appointmentDoc = await getDoc(appointmentRef);
+      
+      if (!appointmentDoc.exists()) {
+        console.error("[AppointmentContext] Appointment not found:", appointmentId);
+        throw new Error("Appointment not found");
+      }
+      
+      const appointmentData = appointmentDoc.data() as Appointment;
+      console.log("[AppointmentContext] Appointment data to cancel:", appointmentData);
+      
+      // Format the date for slot deletion
+      const appointmentDate = appointmentData.date instanceof Date 
+        ? appointmentData.date 
+        : (appointmentData.date as any)?.toDate?.() 
+        ? (appointmentData.date as any).toDate() 
+        : new Date(appointmentData.date);
+      const dateKey = `${appointmentDate.getFullYear()}-${String(appointmentDate.getMonth() + 1).padStart(2, '0')}-${String(appointmentDate.getDate()).padStart(2, '0')}`;
+      
+      console.log("[AppointmentContext] Formatted date key for slot:", dateKey);
+      
+      // Free up the slot in the slot locks collection
+      const freeSlotResult = await freeUpSlot({
+        serviceId: appointmentData.serviceId,
+        doctorId: appointmentData.doctorId,
+        date: dateKey,
+        time: appointmentData.time,
       });
+      
+      console.log("[AppointmentContext] Free slot result:", freeSlotResult);
+      
+      if (!freeSlotResult.ok) {
+        console.warn("[AppointmentContext] Could not free slot, but proceeding with appointment deletion:", freeSlotResult.reason);
+      }
+      
+      // Delete the appointment completely from the database
+      console.log("[AppointmentContext] Deleting appointment document:", appointmentId);
+      await deleteDoc(appointmentRef);
+      console.log("[AppointmentContext] Appointment document deleted successfully");
+      
+      // Refresh the appointments list
+      console.log("[AppointmentContext] Refreshing appointments list");
       await fetchAppointments(user.uid);
+      
+      toast({
+        title: "Appointment Cancelled",
+        description: "The appointment has been successfully cancelled and the time slot is now available for others to book.",
+      });
+      
     } catch (error) {
       console.error("[AppointmentContext] Error cancelling appointment in Firestore:", error);
       toast({

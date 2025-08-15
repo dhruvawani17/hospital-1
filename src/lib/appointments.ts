@@ -10,6 +10,7 @@ import {
   collection,
   query,
   where,
+  deleteDoc,
 } from 'firebase/firestore';
 
 export type SlotLock = {
@@ -78,6 +79,33 @@ export async function confirmAndReleaseSlot(params: { serviceId: string; doctorI
     return { ok: true };
   } catch (e: any) {
     return { ok: false, reason: e.message };
+  }
+}
+
+export async function freeUpSlot(params: { serviceId: string; doctorId: string; date: string; time: string; }): Promise<{ ok: boolean; reason?: string; }> {
+  const { serviceId, doctorId, date, time } = params;
+  const ref = doc(db, slotDocPath(serviceId, doctorId, date, time));
+  
+  console.log('[freeUpSlot] Attempting to free slot with params:', params);
+  console.log('[freeUpSlot] Document path:', slotDocPath(serviceId, doctorId, date, time));
+  
+  try {
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      console.log('[freeUpSlot] Slot document exists:', snap.exists());
+      if (snap.exists()) {
+        console.log('[freeUpSlot] Deleting slot document');
+        // Delete the slot lock document to free up the time slot
+        tx.delete(ref);
+      } else {
+        console.log('[freeUpSlot] Slot document does not exist, nothing to delete');
+      }
+    });
+    console.log('[freeUpSlot] Transaction completed successfully');
+    return { ok: true };
+  } catch (e: any) {
+    console.error('[freeUpSlot] Error freeing slot:', e);
+    return { ok: false, reason: 'Failed to free slot' };
   }
 }
 

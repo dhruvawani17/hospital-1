@@ -32,8 +32,10 @@ service cloud.firestore {
           ('time' in request.resource.data)
         );
 
-      // No deletes from clients
-      allow delete: if false;
+      // Allow delete only by the owner of the lock
+      allow delete: if isSignedIn() 
+        && exists(lockPath(lockId)) 
+        && get(lockPath(lockId)).data.lockedBy == request.auth.uid;
     }
 
     // Appointments: users can create/read their own appointments
@@ -48,7 +50,7 @@ service cloud.firestore {
       allow update: if isSignedIn() 
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
-      allow delete: if false; // Prevent deletions, use status updates instead
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     // Deny all other document access

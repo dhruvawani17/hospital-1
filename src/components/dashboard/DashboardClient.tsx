@@ -52,7 +52,7 @@ export function DashboardClient() {
       await cancelAppointment(appointmentId);
       toast({
         title: "Appointment Cancelled",
-        description: "The appointment has been successfully cancelled.",
+        description: "The appointment has been successfully cancelled and the time slot is now available for others to book.",
       });
     } catch (error) {
       toast({
@@ -155,7 +155,7 @@ export function DashboardClient() {
                           <AlertDialogHeader>
                             <AlertDialogTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive"/>Confirm Cancellation</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to cancel your appointment for {appt.serviceName} on {format(new Date(appt.date), 'PPP')} at {appt.time}? This action cannot be undone.
+                              Are you sure you want to cancel your appointment for {appt.serviceName} on {format(new Date(appt.date), 'PPP')} at {appt.time}? This action will permanently delete the appointment and make the time slot available for others to book. This action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
