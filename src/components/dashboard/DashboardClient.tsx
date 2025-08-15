@@ -52,7 +52,7 @@ export function DashboardClient() {
       await cancelAppointment(appointmentId);
       toast({
         title: "Appointment Cancelled",
-        description: "The appointment has been successfully cancelled and the time slot is now available for others to book.",
+        description: "The appointment has been successfully cancelled.",
       });
     } catch (error) {
       toast({
