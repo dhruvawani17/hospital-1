@@ -135,9 +135,9 @@ export const DOCTORS_DATA: Doctor[] = [
   {
     id: 'dr-sophia-miller',
     name: 'Dr. Sophia Miller',
-    specialty: 'Orthopedic Surgeon',
+    specialty: 'Physiotherapist',
     qualifications: 'MD, FRCS',
-    experience: '7+ years in orthopedics',
+    experience: '7+ years in physiotherapy',
     image: '/doctors/doctor7.png', // Updated path
     dataAiHint: 'doctor portrait',
     specialtyIcon: Activity, 
@@ -145,11 +145,11 @@ export const DOCTORS_DATA: Doctor[] = [
   {
     id: 'dr-david-wilson',
     name: 'Dr. David Wilson',
-    specialty: 'Neurologist',
+    specialty: 'Ophthalmologist',
     qualifications: 'MD, PhD, FAAN',
-    experience: '18+ years in neurological care',
+    experience: '18+ years in ophthalmology',
     image: '/doctors/doctor6.png', // Updated path
-    dataAiHint: 'neurologist portrait', 
+    dataAiHint: 'ophthalmologist portrait',
   },
 ];
 
