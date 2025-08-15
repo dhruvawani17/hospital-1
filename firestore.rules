@@ -46,7 +46,9 @@ service cloud.firestore {
         && ('serviceId' in request.resource.data)
         && ('doctorId' in request.resource.data)
         && ('patientName' in request.resource.data)
-        && ('patientEmail' in request.resource.data);
+        && ('patientEmail' in request.resource.data)
+        && ('status' in request.resource.data)
+        && (request.resource.data.status == 'pending' || request.resource.data.status == 'confirmed');
       allow update: if isSignedIn() 
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;

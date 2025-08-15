@@ -42,7 +42,7 @@ type AppointmentFormValues = z.infer<typeof appointmentFormSchema>;
 export function BookAppointmentClient() {
   const router = useRouter();
   const { toast } = useToast();
-  const { currentAppointment, updateAppointmentData, startNewAppointment } = useAppointment();
+  const { currentAppointment, updateAppointmentData, startNewAppointment, createPendingAppointmentOnPayment } = useAppointment();
   const { t } = useTranslation();
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(currentAppointment?.date ? new Date(currentAppointment.date) : undefined);
@@ -120,7 +120,13 @@ export function BookAppointmentClient() {
   
 
   async function onSubmit(data: AppointmentFormValues) {
-    updateAppointmentData(data);
+    // Create pending appointment in database with the form data
+    const appointmentId = await createPendingAppointmentOnPayment(data);
+    if (!appointmentId) {
+      // Error toast is already shown in createPendingAppointmentOnPayment
+      return;
+    }
+    
     toast({
       title: t('appointmentDetailsSaved'),
       description: t('proceedingToPayment'),

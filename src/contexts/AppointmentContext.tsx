@@ -4,7 +4,7 @@
 import type { Appointment, AppointmentFormData, ReceiptData, Service } from "@/types";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { SERVICES_DATA, APP_NAME, DOCTORS_DATA } from "@/lib/constants";
-import { confirmAndReleaseSlot, freeUpSlot } from "@/lib/appointments";
+import { confirmAndReleaseSlot, freeUpSlot, createPendingAppointment, updateAppointmentToConfirmed } from "@/lib/appointments";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -31,6 +31,7 @@ interface AppointmentContextType {
   isLoadingAppointments: boolean;
   startNewAppointment: (service: Service) => void;
   updateAppointmentData: (data: Partial<AppointmentFormData>) => void;
+  createPendingAppointmentOnPayment: (appointmentData?: Partial<AppointmentFormData>) => Promise<string | null>;
   confirmAppointment: (paymentDetails: { transactionId: string }) => Promise<ReceiptData | null>;
   getAppointmentByTransactionId: (transactionId: string) => Promise<Appointment | null>;
   clearCurrentAppointment: () => void;
@@ -196,6 +197,10 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       date: dateKey,
       time: currentAppointment.time,
       userId: user.uid, // Use authenticated user ID for final confirmation
+      patientName: currentAppointment.patientName,
+      patientEmail: currentAppointment.patientEmail,
+      patientPhone: currentAppointment.patientPhone || '',
+      transactionId: paymentDetails.transactionId,
     });
     if (!lockResult.ok) {
       toast({ variant: 'destructive', title: 'Slot No Longer Available', description: 'Please go back and pick another time.' });
@@ -312,6 +317,79 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCurrentAppointment(null);
   }, []);
 
+  const createPendingAppointmentOnPayment = useCallback(async (appointmentData?: Partial<AppointmentFormData>): Promise<string | null> => {
+    // Use provided data or fall back to current appointment
+    const dataToUse = appointmentData || currentAppointment;
+    
+    if (!user?.uid || !dataToUse || !dataToUse.serviceId || !dataToUse.doctorId || !dataToUse.date || !dataToUse.time || !dataToUse.patientName || !dataToUse.patientEmail) {
+      console.error("[AppointmentContext] Incomplete appointment data or user not logged in for createPendingAppointmentOnPayment. Data to use:", dataToUse, "User:", user);
+      toast({
+        variant: "destructive",
+        title: "Booking Error",
+        description: "Missing required information or user not logged in to create appointment.",
+      });
+      return null;
+    }
+
+    const service = SERVICES_DATA.find(s => s.id === dataToUse.serviceId);
+    if (!service) {
+      console.error("[AppointmentContext] Service not found for pending appointment. Service ID:", dataToUse.serviceId);
+      toast({
+        variant: "destructive",
+        title: "Booking Error",
+        description: `Service with ID ${dataToUse.serviceId} not found.`,
+      });
+      return null;
+    }
+
+    const doctor = DOCTORS_DATA.find(d => d.id === dataToUse.doctorId);
+    if (!doctor) {
+      toast({ variant: "destructive", title: "Doctor Not Found", description: `Doctor with ID ${dataToUse.doctorId} not found.` });
+      return null;
+    }
+
+    try {
+      const result = await createPendingAppointment({
+        userId: user.uid,
+        serviceId: dataToUse.serviceId,
+        serviceName: service.name,
+        doctorId: dataToUse.doctorId,
+        doctorName: doctor.name,
+        date: new Date(dataToUse.date),
+        time: dataToUse.time,
+        patientName: dataToUse.patientName,
+        patientEmail: dataToUse.patientEmail,
+        patientPhone: dataToUse.patientPhone || '',
+        price: service.price,
+      });
+
+      if (result.ok && result.appointmentId) {
+        console.log("[AppointmentContext] Pending appointment created successfully:", result.appointmentId);
+        // Update context with the provided data if it was passed
+        if (appointmentData) {
+          updateAppointmentData(appointmentData);
+        }
+        return result.appointmentId;
+      } else {
+        console.error("[AppointmentContext] Failed to create pending appointment:", result.reason);
+        toast({
+          variant: "destructive",
+          title: "Booking Error",
+          description: "Could not create pending appointment. Please try again.",
+        });
+        return null;
+      }
+    } catch (error) {
+      console.error("[AppointmentContext] Error creating pending appointment:", error);
+      toast({
+        variant: "destructive",
+        title: "Booking Error",
+        description: "Could not create pending appointment. Please try again.",
+      });
+      return null;
+    }
+  }, [user, currentAppointment, updateAppointmentData, toast]);
+
   const cancelAppointment = useCallback(async (appointmentId: string) => {
     if(!user?.uid) {
         console.error("[AppointmentContext] User not logged in, cannot cancel appointment.");
@@ -393,6 +471,7 @@ export const AppointmentProvider: React.FC<{ children: React.ReactNode }> = ({ c
       isLoadingAppointments,
       startNewAppointment,
       updateAppointmentData,
+      createPendingAppointmentOnPayment,
       confirmAppointment,
       getAppointmentByTransactionId,
       clearCurrentAppointment,

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppointment } from '@/contexts/AppointmentContext';
 import type { Appointment } from '@/types';
@@ -28,13 +28,17 @@ export function DashboardClient() {
   const { user } = useAuth();
   const { confirmedAppointments, cancelAppointment, isLoadingAppointments } = useAppointment();
   const { toast } = useToast();
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  // Appointments are already sorted by date in the context
-  const userAppointments = confirmedAppointments;
+  // Filter out cancelled appointments and sort by date
+  const userAppointments = confirmedAppointments
+    .filter(appt => appt.status !== 'cancelled') // Filter out cancelled appointments
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Sort by date ascending
 
   console.log("[DashboardClient] Rendering. User:", user);
   console.log("[DashboardClient] isLoadingAppointments:", isLoadingAppointments);
-  console.log("[DashboardClient] userAppointments (from context):", userAppointments);
+  console.log("[DashboardClient] All appointments from context:", confirmedAppointments);
+  console.log("[DashboardClient] Filtered userAppointments:", userAppointments);
 
 
   if (!user) {
@@ -48,19 +52,24 @@ export function DashboardClient() {
   }
 
   const handleCancelAppointment = async (appointmentId: string) => { // appointmentId is Firestore doc ID
+    setCancellingId(appointmentId);
     try {
+      console.log("[DashboardClient] Starting cancellation for appointment:", appointmentId);
       await cancelAppointment(appointmentId);
+      console.log("[DashboardClient] Cancellation completed successfully");
       toast({
         title: "Appointment Cancelled",
-        description: "The appointment has been successfully cancelled.",
+        description: "The appointment has been successfully cancelled and removed.",
       });
     } catch (error) {
+      console.error("[DashboardClient] Cancellation error:", error);
       toast({
         variant: "destructive",
         title: "Cancellation Failed",
         description: "Could not cancel the appointment. Please try again.",
       });
-      console.error("[DashboardClient] Cancellation error:", error);
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -74,6 +83,19 @@ export function DashboardClient() {
         return 'text-orange-500 font-semibold';
       default:
         return 'text-muted-foreground';
+    }
+  };
+
+  const getStatusText = (status: Appointment['status']) => {
+    switch (status) {
+      case 'confirmed':
+        return 'Confirmed';
+      case 'cancelled':
+        return 'Cancelled';
+      case 'pending':
+        return 'Pending Payment';
+      default:
+        return status;
     }
   };
 
@@ -119,7 +141,7 @@ export function DashboardClient() {
                       {appt.serviceName}
                     </CardTitle>
                     <CardDescription className="capitalize">
-                      Status: <span className={getStatusClass(appt.status)}>{appt.status}</span>
+                      Status: <span className={getStatusClass(appt.status)}>{getStatusText(appt.status)}</span>
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -137,18 +159,37 @@ export function DashboardClient() {
                     </div>
                     <div className="flex items-center">
                        <Info className="h-5 w-5 text-muted-foreground mr-2" />
-                       <strong>Receipt ID:</strong>&nbsp;<span className="truncate">{appt.transactionId}</span>
+                       <strong>Receipt ID:</strong>&nbsp;<span className="truncate">{appt.transactionId || 'Pending Payment'}</span>
                     </div>
                   </CardContent>
                    <CardFooter className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-                     <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
-                       <Link href={`/receipt?transactionId=${appt.transactionId}`}>View Receipt</Link>
-                     </Button>
-                     {appt.status === 'confirmed' && (
+                     {appt.transactionId ? (
+                       <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
+                         <Link href={`/receipt?transactionId=${appt.transactionId}`}>View Receipt</Link>
+                       </Button>
+                     ) : (
+                       <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
+                         <Link href="/payment">Complete Payment</Link>
+                       </Button>
+                     )}
+                     {(appt.status === 'confirmed' || appt.status === 'pending') && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm" className="w-full sm:w-auto">
-                            <XCircle className="mr-2 h-4 w-4" /> Cancel Appointment
+                          <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            className="w-full sm:w-auto"
+                            disabled={cancellingId === appt.id}
+                          >
+                            {cancellingId === appt.id ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cancelling...
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="mr-2 h-4 w-4" /> Cancel Appointment
+                              </>
+                            )}
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -160,8 +201,18 @@ export function DashboardClient() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Keep Appointment</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleCancelAppointment(appt.id)} className="bg-destructive hover:bg-destructive/90">
-                              Yes, Cancel Appointment
+                            <AlertDialogAction 
+                              onClick={() => handleCancelAppointment(appt.id)} 
+                              className="bg-destructive hover:bg-destructive/90"
+                              disabled={cancellingId === appt.id}
+                            >
+                              {cancellingId === appt.id ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cancelling...
+                                </>
+                              ) : (
+                                "Yes, Cancel Appointment"
+                              )}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
