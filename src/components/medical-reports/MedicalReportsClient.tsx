@@ -255,12 +255,12 @@ export function MedicalReportsClient() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-primary mb-4">
+    <div className="container mx-auto px-3 md:px-4 py-4 md:py-8 max-w-4xl">
+      <div className="text-center mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-primary mb-3 md:mb-4">
           Medical Report Analysis
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm md:text-base leading-relaxed px-2 md:px-0">
           Upload your medical reports and ask questions to get detailed insights and explanations
         </p>
       </div>
@@ -328,16 +328,16 @@ export function MedicalReportsClient() {
       )}
 
       {/* Upload Section */}
-      <Card className="mb-6">
-        <CardHeader>
+      <Card className="mb-4 md:mb-6">
+        <CardHeader className="px-3 md:px-6 py-4 md:py-6">
           <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Upload Medical Report
+            <Upload className="h-4 w-4 md:h-5 md:w-5" />
+            <span className="text-base md:text-lg">Upload Medical Report</span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-3 md:px-6 pb-4 md:pb-6">
           <div>
-            <Label htmlFor="pdf-upload">Select PDF File</Label>
+            <Label htmlFor="pdf-upload" className="text-sm md:text-base">Select PDF File</Label>
             <Input
               id="pdf-upload"
               type="file"
@@ -345,46 +345,50 @@ export function MedicalReportsClient() {
               onChange={handleFileSelect}
               ref={fileInputRef}
               disabled={isUploading}
+              className="mt-1 text-sm md:text-base"
             />
           </div>
           
           {file && (
-            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-              <FileText className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm">{file.name}</span>
-              <span className="text-xs text-muted-foreground">
-                ({(file.size / 1024 / 1024).toFixed(2)} MB)
-              </span>
+            <div className="flex items-center gap-2 p-2.5 md:p-3 bg-muted rounded-lg">
+              <FileText className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <span className="text-xs md:text-sm font-medium truncate block">{file.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                </span>
+              </div>
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex flex-col md:flex-row gap-2">
             <Button 
               onClick={handleUpload}
               disabled={!file || isUploading || (healthCheck ? healthCheck.status !== 'healthy' : true)}
-              className="flex-1"
+              className="flex-1 w-full md:w-auto"
+              size="sm"
             >
               {isUploading ? (
                 <>
-                  <LoadingSpinner className="mr-2 h-4 w-4" />
-                  Processing...
+                  <LoadingSpinner className="mr-2 h-3 w-3 md:h-4 md:w-4" />
+                  <span className="text-sm md:text-base">Processing...</span>
                 </>
               ) : (
-                'Upload & Process PDF'
+                <span className="text-sm md:text-base">Upload & Process PDF</span>
               )}
             </Button>
             
             {(file || isProcessed) && (
-              <Button variant="outline" onClick={resetAll}>
-                Reset
+              <Button variant="outline" onClick={resetAll} size="sm" className="w-full md:w-auto">
+                <span className="text-sm md:text-base">Reset</span>
               </Button>
             )}
           </div>
 
           {uploadStatus === 'success' && (
             <Alert>
-              <CheckCircle2 className="h-4 w-4" />
-              <AlertDescription>
+              <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4" />
+              <AlertDescription className="text-sm md:text-base">
                 PDF successfully uploaded and processed! You can now ask questions.
               </AlertDescription>
             </Alert>
@@ -394,57 +398,61 @@ export function MedicalReportsClient() {
 
       {/* Analysis Section */}
       {isProcessed && (
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Analysis Mode Selector */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
+            <CardHeader className="px-3 md:px-6 py-4 md:py-6">
+              <CardTitle className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <span className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Medical Report Analysis
+                  <BarChart3 className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0" />
+                  <span className="text-base md:text-lg">Medical Report Analysis</span>
                 </span>
-                <div className="flex gap-2">
+                <div className="flex gap-2 w-full md:w-auto">
                   <Button
                     variant={analysisMode === 'chat' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setAnalysisMode('chat')}
+                    className="flex-1 md:flex-none"
                   >
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Chat Mode
+                    <MessageCircle className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                    <span className="text-xs md:text-sm">Chat</span>
+                    <span className="hidden sm:inline ml-1">Mode</span>
                   </Button>
                   <Button
                     variant={analysisMode === 'enhanced' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setAnalysisMode('enhanced')}
+                    className="flex-1 md:flex-none"
                   >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Enhanced Analysis
+                    <Sparkles className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                    <span className="text-xs md:text-sm">Enhanced</span>
+                    <span className="hidden sm:inline ml-1">Analysis</span>
                   </Button>
                 </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 md:px-6 pb-4 md:pb-6">
               {analysisMode === 'enhanced' && !enhancedAnalysis && (
-                <div className="text-center py-8">
+                <div className="text-center py-6 md:py-8">
                   <Button
                     onClick={handleEnhancedAnalysis}
                     disabled={isGeneratingEnhanced}
                     size="lg"
-                    className="mb-4"
+                    className="mb-4 w-full md:w-auto"
                   >
                     {isGeneratingEnhanced ? (
                       <>
-                        <LoadingSpinner className="mr-2 h-4 w-4" />
-                        Generating Enhanced Analysis...
+                        <LoadingSpinner className="mr-2 h-3 w-3 md:h-4 md:w-4" />
+                        <span className="text-sm md:text-base">Generating...</span>
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Generate Enhanced Analysis
+                        <Sparkles className="mr-2 h-3 w-3 md:h-4 md:w-4" />
+                        <span className="text-sm md:text-base">Generate Enhanced Analysis</span>
                       </>
                     )}
                   </Button>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs md:text-sm text-muted-foreground leading-relaxed px-2 md:px-0">
                     Get a comprehensive, structured analysis of your medical report using advanced AI formatting.
                   </p>
                 </div>
@@ -455,28 +463,28 @@ export function MedicalReportsClient() {
           {/* Chat Mode */}
           {analysisMode === 'chat' && (
             <Card>
-              <CardHeader>
+              <CardHeader className="px-3 md:px-6 py-4 md:py-6">
                 <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5" />
-                  Chat with Your Medical Report
+                  <MessageCircle className="h-4 w-4 md:h-5 md:w-5" />
+                  <span className="text-base md:text-lg">Chat with Your Medical Report</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 px-3 md:px-6 pb-4 md:pb-6">
                 {/* Chat History */}
-                <div className="space-y-4 max-h-96 overflow-y-auto">
+                <div className="space-y-3 md:space-y-4 max-h-80 md:max-h-96 overflow-y-auto">
                   {chatHistory.map((message) => (
                     <div
                       key={message.id}
                       className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[80%] p-3 rounded-lg ${
+                        className={`max-w-[85%] md:max-w-[80%] p-2.5 md:p-3 rounded-lg ${
                           message.type === 'user'
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-muted'
                         }`}
                       >
-                        <p className="text-sm">{message.content}</p>
+                        <p className="text-xs md:text-sm leading-relaxed">{message.content}</p>
                         <p className="text-xs opacity-70 mt-1">
                           {message.timestamp.toLocaleTimeString()}
                         </p>
@@ -486,31 +494,32 @@ export function MedicalReportsClient() {
                 </div>
 
                 {/* Question Input */}
-                <div className="flex gap-2">
+                <div className="flex flex-col md:flex-row gap-2">
                   <Textarea
                     placeholder="Ask a question about your medical report..."
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
                     disabled={isAsking}
-                    className="flex-1"
+                    className="flex-1 text-sm md:text-base"
                     rows={2}
                   />
                   <Button
                     onClick={handleAskQuestion}
                     disabled={!question.trim() || isAsking}
-                    className="self-end"
+                    className="self-end md:self-end w-full md:w-auto"
+                    size="sm"
                   >
                     {isAsking ? (
-                      <LoadingSpinner className="h-4 w-4" />
+                      <LoadingSpinner className="h-3 w-3 md:h-4 md:w-4" />
                     ) : (
-                      'Ask'
+                      <span className="text-sm md:text-base">Ask</span>
                     )}
                   </Button>
                 </div>
 
-                <div className="text-xs text-muted-foreground">
-                  <p>💡 Example questions:</p>
-                  <ul className="list-disc list-inside mt-1 space-y-1">
+                <div className="text-xs md:text-sm text-muted-foreground">
+                  <p className="mb-2">💡 Example questions:</p>
+                  <ul className="list-disc list-inside ml-2 md:ml-4 space-y-1 leading-relaxed">
                     <li>What are the key findings in this report?</li>
                     <li>Are there any abnormal values?</li>
                     <li>What do these test results mean?</li>
