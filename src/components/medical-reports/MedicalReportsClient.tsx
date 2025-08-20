@@ -8,14 +8,30 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Upload, FileText, MessageCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Upload, FileText, MessageCircle, AlertCircle, CheckCircle2, Sparkles, BarChart3 } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { EnhancedAnalysisDisplay } from './EnhancedAnalysisDisplay';
 
 interface ChatMessage {
   id: string;
   type: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+}
+
+interface AnalysisSection {
+  title: string;
+  content: string;
+  type: 'summary' | 'findings' | 'recommendations' | 'terminology' | 'metrics';
+  priority: 'high' | 'medium' | 'low';
+  icon?: string;
+}
+
+interface EnhancedAnalysis {
+  sections: AnalysisSection[];
+  rawResponse: string;
+  confidence: number;
+  processingTime: string;
 }
 
 interface HealthCheck {
@@ -50,10 +66,14 @@ export function MedicalReportsClient() {
   const [error, setError] = useState<string | null>(null);
   const [healthCheck, setHealthCheck] = useState<HealthCheck | null>(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(true);
+  const [enhancedAnalysis, setEnhancedAnalysis] = useState<EnhancedAnalysis | null>(null);
+  const [isGeneratingEnhanced, setIsGeneratingEnhanced] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState<'chat' | 'enhanced'>('chat');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check system health on component mount
   React.useEffect(() => {
+
     const checkHealth = async () => {
       try {
         const response = await fetch('/api/medical-reports/health');
@@ -145,7 +165,7 @@ export function MedicalReportsClient() {
       content: question,
       timestamp: new Date(),
     };
-    setChatHistory(prev => [...prev, userMessage]);
+    setChatHistory((prev: ChatMessage[]) => [...prev, userMessage]);
 
     try {
       console.log('Asking question:', question);
@@ -172,7 +192,7 @@ export function MedicalReportsClient() {
         content: result.answer,
         timestamp: new Date(),
       };
-      setChatHistory(prev => [...prev, assistantMessage]);
+      setChatHistory((prev: ChatMessage[]) => [...prev, assistantMessage]);
       setQuestion('');
     } catch (error) {
       console.error('Chat error:', error);
@@ -183,6 +203,43 @@ export function MedicalReportsClient() {
     }
   };
 
+  const handleEnhancedAnalysis = async () => {
+    if (!isProcessed) return;
+
+    setIsGeneratingEnhanced(true);
+    setError(null);
+
+    try {
+      console.log('Generating enhanced analysis...');
+      const response = await fetch('/api/medical-reports/enhanced-analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          question: 'Please provide a comprehensive analysis of this medical report including key findings, terminology explanations, and recommendations.' 
+        }),
+      });
+
+      console.log('Enhanced analysis response status:', response.status);
+      const result = await response.json();
+      console.log('Enhanced analysis response data:', result);
+
+      if (!response.ok) {
+        throw new Error(result.details || result.error || 'Failed to generate enhanced analysis');
+      }
+      
+      setEnhancedAnalysis(result);
+      setAnalysisMode('enhanced');
+    } catch (error) {
+      console.error('Enhanced analysis error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate enhanced analysis. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setIsGeneratingEnhanced(false);
+    }
+  };
+
   const resetAll = () => {
     setFile(null);
     setIsProcessed(false);
@@ -190,6 +247,8 @@ export function MedicalReportsClient() {
     setChatHistory([]);
     setQuestion('');
     setError(null);
+    setEnhancedAnalysis(null);
+    setAnalysisMode('chat');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -333,73 +392,154 @@ export function MedicalReportsClient() {
         </CardContent>
       </Card>
 
-      {/* Chat Section */}
+      {/* Analysis Section */}
       {isProcessed && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5" />
-              Chat with Your Medical Report
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Chat History */}
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {chatHistory.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] p-3 rounded-lg ${
-                      message.type === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                    }`}
+        <div className="space-y-6">
+          {/* Analysis Mode Selector */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Medical Report Analysis
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant={analysisMode === 'chat' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setAnalysisMode('chat')}
                   >
-                    <p className="text-sm">{message.content}</p>
-                    <p className="text-xs opacity-70 mt-1">
-                      {message.timestamp.toLocaleTimeString()}
-                    </p>
-                  </div>
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Chat Mode
+                  </Button>
+                  <Button
+                    variant={analysisMode === 'enhanced' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setAnalysisMode('enhanced')}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Enhanced Analysis
+                  </Button>
                 </div>
-              ))}
-            </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {analysisMode === 'enhanced' && !enhancedAnalysis && (
+                <div className="text-center py-8">
+                  <Button
+                    onClick={handleEnhancedAnalysis}
+                    disabled={isGeneratingEnhanced}
+                    size="lg"
+                    className="mb-4"
+                  >
+                    {isGeneratingEnhanced ? (
+                      <>
+                        <LoadingSpinner className="mr-2 h-4 w-4" />
+                        Generating Enhanced Analysis...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate Enhanced Analysis
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    Get a comprehensive, structured analysis of your medical report using advanced AI formatting.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-            {/* Question Input */}
-            <div className="flex gap-2">
-              <Textarea
-                placeholder="Ask a question about your medical report..."
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                disabled={isAsking}
-                className="flex-1"
-                rows={2}
-              />
-              <Button
-                onClick={handleAskQuestion}
-                disabled={!question.trim() || isAsking}
-                className="self-end"
-              >
-                {isAsking ? (
-                  <LoadingSpinner className="h-4 w-4" />
-                ) : (
-                  'Ask'
-                )}
-              </Button>
-            </div>
+          {/* Chat Mode */}
+          {analysisMode === 'chat' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5" />
+                  Chat with Your Medical Report
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Chat History */}
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {chatHistory.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[80%] p-3 rounded-lg ${
+                          message.type === 'user'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted'
+                        }`}
+                      >
+                        <p className="text-sm">{message.content}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {message.timestamp.toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-            <div className="text-xs text-muted-foreground">
-              <p>💡 Example questions:</p>
-              <ul className="list-disc list-inside mt-1 space-y-1">
-                <li>What are the key findings in this report?</li>
-                <li>Are there any abnormal values?</li>
-                <li>What do these test results mean?</li>
-                <li>Should I be concerned about anything?</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
+                {/* Question Input */}
+                <div className="flex gap-2">
+                  <Textarea
+                    placeholder="Ask a question about your medical report..."
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    disabled={isAsking}
+                    className="flex-1"
+                    rows={2}
+                  />
+                  <Button
+                    onClick={handleAskQuestion}
+                    disabled={!question.trim() || isAsking}
+                    className="self-end"
+                  >
+                    {isAsking ? (
+                      <LoadingSpinner className="h-4 w-4" />
+                    ) : (
+                      'Ask'
+                    )}
+                  </Button>
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  <p>💡 Example questions:</p>
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    <li>What are the key findings in this report?</li>
+                    <li>Are there any abnormal values?</li>
+                    <li>What do these test results mean?</li>
+                    <li>Should I be concerned about anything?</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Enhanced Analysis Mode */}
+          {analysisMode === 'enhanced' && enhancedAnalysis && (
+            <EnhancedAnalysisDisplay
+              sections={enhancedAnalysis.sections}
+              confidence={enhancedAnalysis.confidence}
+              processingTime={enhancedAnalysis.processingTime}
+            />
+          )}
+
+          {/* Loading State for Enhanced Analysis */}
+          {analysisMode === 'enhanced' && isGeneratingEnhanced && (
+            <EnhancedAnalysisDisplay
+              sections={[]}
+              confidence={0}
+              processingTime="0ms"
+              isLoading={true}
+            />
+          )}
+        </div>
       )}
     </div>
   );

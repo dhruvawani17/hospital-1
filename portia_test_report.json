@@ -1,0 +1,19 @@
+{
+  "timestamp": "2025-08-20T16:11:25.899960",
+  "portia_integration_test": {
+    "status": "completed",
+    "tests": [
+      {
+        "name": "Basic Functionality Test",
+        "status": "failed",
+        "description": "Test basic Portia SDK operations"
+      },
+      {
+        "name": "Medical Analysis Test",
+        "status": "failed",
+        "description": "Test enhanced medical report analysis formatting"
+      }
+    ],
+    "overall_status": "failed"
+  }
+}
