@@ -10,7 +10,7 @@ import json
 from datetime import datetime
 
 # Set environment variable for OpenAI API key (using hardcoded key from config)
-os.environ['OPENAI_API_KEY'] = 'AIzaSyBBS18I7nOqVBvrmalSZzl0oo0YGxqGLlQ'
+os.environ['OPENAI_API_KEY'] = 'AIzaSyBCpZoV9403JiGqgWN9s5qKWXy5eB7DHW4'
 
 try:
     import portia
