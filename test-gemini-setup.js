@@ -3,19 +3,23 @@ const { QdrantClient } = require('@qdrant/js-client-rest');
 const fs = require('fs');
 const path = require('path');
 
-// Manually load .env.local
-const envPath = path.join(__dirname, '.env.local');
-if (fs.existsSync(envPath)) {
-  const envContent = fs.readFileSync(envPath, 'utf8');
-  envContent.split('\n').forEach(line => {
-    if (line.trim() && !line.startsWith('#')) {
-      const [key, ...valueParts] = line.split('=');
-      if (key && valueParts.length > 0) {
-        process.env[key.trim()] = valueParts.join('=').trim();
+// Manually load environment files
+const envFiles = ['.env.local', 'process.env'];
+envFiles.forEach(fileName => {
+  const envPath = path.join(__dirname, fileName);
+  if (fs.existsSync(envPath)) {
+    console.log(`Loading environment from: ${fileName}`);
+    const envContent = fs.readFileSync(envPath, 'utf8');
+    envContent.split('\n').forEach(line => {
+      if (line.trim() && !line.startsWith('#')) {
+        const [key, ...valueParts] = line.split('=');
+        if (key && valueParts.length > 0) {
+          process.env[key.trim()] = valueParts.join('=').trim();
+        }
       }
-    }
-  });
-}
+    });
+  }
+});
 
 async function testConnections() {
   console.log('🧪 Testing Gemini + Qdrant Medical Reports Setup...\n');
